@@ -28,7 +28,7 @@ A comprehensive academy management system with **Django REST Framework** backend
 
 #### 1.1 Clone the Repository
 ```bash
-git clone https://github.com/yourusername/sportsverse.git
+git clone https://github.com/HIronF/sportsverse.git
 cd sportsverse/backend
 ```
 
