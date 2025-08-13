@@ -1,0 +1,27 @@
+# SportsVerse Academy Management System - Backend Dependencies
+
+# Core Django Framework
+Django>=4.2.0,<5.0
+djangorestframework>=3.14.0
+
+# Database
+mysqlclient>=2.2.0  # MySQL database adapter
+# Alternative database options:
+# psycopg2-binary>=2.9.0  # For PostgreSQL
+# sqlite3 is included with Python (for development only)
+
+# Authentication & Security
+djangorestframework-authtoken>=1.0.0
+django-cors-headers>=4.0.0  # For Flutter frontend CORS
+
+# File Handling
+Pillow>=10.0.0  # For ImageField uploads (logos, icons)
+
+# Email Support
+django-extensions>=3.2.0  # Useful development extensions
+
+# Environment Variables (recommended)
+python-decouple>=3.8  # For managing environment variables
+
+# Development & Testing (optional)
+django-debug-toolbar>=4.0.0  # For debugging (development only)
