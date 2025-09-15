@@ -224,7 +224,7 @@ class AdminDashboardScreen extends StatelessWidget {
                     'Quick flow',
                     Icons.checklist,
                     const Color(0xFF06beb6),
-                    () => Navigator.pushNamed(context, '/attendance/branches'),
+                    () => Navigator.pushNamed(context, '/attendance'),
                   ),
                 ),
               ],

@@ -211,13 +211,9 @@ class _StudentEnrollmentScreenState extends State<StudentEnrollmentScreen> {
                     margin: const EdgeInsets.only(bottom: 12),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: enrollment.isActive
-                            ? Colors.green
-                            : Colors.grey,
+                        backgroundColor: Colors.blue,
                         child: Icon(
-                          enrollment.isActive
-                              ? Icons.school
-                              : Icons.school_outlined,
+                          Icons.school,
                           color: Colors.white,
                         ),
                       ),
@@ -246,12 +242,9 @@ class _StudentEnrollmentScreenState extends State<StudentEnrollmentScreen> {
                             ),
                           const SizedBox(height: 4),
                           Text(
-                            enrollment.enrollmentStatus ??
-                                (enrollment.isActive ? 'Active' : 'Inactive'),
+                            enrollment.enrollmentStatus ?? 'Active',
                             style: TextStyle(
-                              color:
-                                  enrollment.enrollmentStarted &&
-                                      enrollment.isActive
+                              color: enrollment.enrollmentStarted
                                   ? Colors.green
                                   : Colors.grey,
                               fontWeight: FontWeight.w500,
@@ -332,7 +325,7 @@ class _StudentEnrollmentDialogState extends State<StudentEnrollmentDialog> {
   String _enrollmentType = 'SESSION_BASED';
   DateTime _startDate = DateTime.now();
   DateTime? _endDate;
-  bool _isActive = true;
+
 
   bool get isEditing => widget.enrollment != null;
 
@@ -351,7 +344,7 @@ class _StudentEnrollmentDialogState extends State<StudentEnrollmentDialog> {
       _enrollmentType = enrollment.enrollmentType;
       _startDate = enrollment.startDate ?? DateTime.now();
       _endDate = enrollment.endDate;
-      _isActive = enrollment.isActive;
+
 
       if (enrollment.totalSessions != null) {
         _totalSessionsController.text = enrollment.totalSessions.toString();
@@ -512,20 +505,7 @@ class _StudentEnrollmentDialogState extends State<StudentEnrollmentDialog> {
                     },
                   ),
                 const SizedBox(height: 16),
-                SwitchListTile(
-                  title: const Text('Active'),
-                  subtitle: Text(
-                    _isActive
-                        ? 'Enrollment is active'
-                        : 'Enrollment is inactive',
-                  ),
-                  value: _isActive,
-                  onChanged: (value) {
-                    setState(() {
-                      _isActive = value;
-                    });
-                  },
-                ),
+
               ],
             ),
           ),
@@ -548,7 +528,7 @@ class _StudentEnrollmentDialogState extends State<StudentEnrollmentDialog> {
                 'totalSessions': _totalSessionsController.text.isNotEmpty
                     ? int.parse(_totalSessionsController.text)
                     : null,
-                'isActive': _isActive,
+
               };
               Navigator.pop(context, result);
             }

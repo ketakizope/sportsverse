@@ -66,17 +66,21 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
     if (confirmed == true) {
       try {
         await branchApi.deleteBranch(branch.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Branch deleted successfully')),
-        );
-        _loadBranches(); // Refresh the list
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Branch deleted successfully')),
+          );
+          _loadBranches(); // Refresh the list
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete branch: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete branch: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -152,13 +156,9 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                     margin: const EdgeInsets.only(bottom: 12),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: branch.isActive
-                            ? Colors.green
-                            : Colors.grey,
+                        backgroundColor: Colors.blue,
                         child: Icon(
-                          branch.isActive
-                              ? Icons.store
-                              : Icons.store_mall_directory_outlined,
+                          Icons.business,
                           color: Colors.white,
                         ),
                       ),
@@ -166,21 +166,11 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                         branch.name,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(branch.address),
-                          const SizedBox(height: 4),
-                          Text(
-                            branch.isActive ? 'Active' : 'Inactive',
-                            style: TextStyle(
-                              color: branch.isActive
-                                  ? Colors.green
-                                  : Colors.grey,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                      subtitle: Text(
+                        'Address: ${branch.address}',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                        ),
                       ),
                       trailing: PopupMenuButton<String>(
                         onSelected: (value) {
@@ -245,7 +235,7 @@ class _AddEditBranchScreenState extends State<AddEditBranchScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
-  bool _isActive = true;
+
   bool _isLoading = false;
 
   bool get isEditing => widget.branch != null;
@@ -256,7 +246,7 @@ class _AddEditBranchScreenState extends State<AddEditBranchScreen> {
     if (isEditing) {
       _nameController.text = widget.branch!.name;
       _addressController.text = widget.branch!.address;
-      _isActive = widget.branch!.isActive;
+
     }
   }
 
@@ -280,7 +270,7 @@ class _AddEditBranchScreenState extends State<AddEditBranchScreen> {
           branchId: widget.branch!.id,
           name: _nameController.text.trim(),
           address: _addressController.text.trim(),
-          isActive: _isActive,
+          isActive: widget.branch!.isActive,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -291,7 +281,7 @@ class _AddEditBranchScreenState extends State<AddEditBranchScreen> {
         await branchApi.createBranch(
           name: _nameController.text.trim(),
           address: _addressController.text.trim(),
-          isActive: _isActive,
+          isActive: true,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -369,22 +359,7 @@ class _AddEditBranchScreenState extends State<AddEditBranchScreen> {
                 textCapitalization: TextCapitalization.sentences,
               ),
               const SizedBox(height: 16),
-              SwitchListTile(
-                title: const Text('Active Status'),
-                subtitle: Text(
-                  _isActive ? 'Branch is active' : 'Branch is inactive',
-                ),
-                value: _isActive,
-                onChanged: (value) {
-                  setState(() {
-                    _isActive = value;
-                  });
-                },
-                secondary: Icon(
-                  _isActive ? Icons.check_circle : Icons.cancel,
-                  color: _isActive ? Colors.green : Colors.grey,
-                ),
-              ),
+
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _isLoading ? null : _saveBranch,

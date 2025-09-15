@@ -36,7 +36,7 @@ class CoachApi {
   /// Get all coaches in the organization
   Future<List<Coach>> getCoaches() async {
     final response = await apiClient.get(
-      '/accounts/coaches/',
+      '/api/accounts/coaches/',
       includeAuth: true,
     );
 
@@ -57,7 +57,7 @@ class CoachApi {
     final assignmentData = {'branches': branchIds};
 
     final response = await apiClient.put(
-      '/accounts/coaches/$coachId/assign-branches/',
+      '/api/accounts/coaches/$coachId/assign-branches/',
       assignmentData,
       includeAuth: true,
     );

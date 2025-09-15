@@ -37,6 +37,6 @@ class Branch {
 
   // Helper method for creating a new branch (without ID)
   Map<String, dynamic> toCreateJson() {
-    return {'name': name, 'address': address, 'is_active': isActive};
+    return {'name': name, 'address': address, 'is_active': true};
   }
 }

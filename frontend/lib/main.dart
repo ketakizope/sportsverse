@@ -15,6 +15,7 @@ import 'package:sportsverse_app/screens/auth/register_user_screen.dart'; // New 
 import 'package:sportsverse_app/screens/academy_admin/attendance_branch_select_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/take_attendance_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/view_attendance_screen.dart';
+import 'package:sportsverse_app/screens/academy_admin/attendance_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -91,6 +92,7 @@ class _SportsVerseAppState extends State<SportsVerseApp> {
         '/register-user': (context) =>
             const RegisterUserScreen(), // Route for coach/student/staff registration
         '/forgot-password': (context) => const ForgotPasswordScreen(),
+        '/attendance': (context) => const AttendanceScreen(), // New combined attendance screen
         '/attendance/branches': (context) => const AttendanceBranchSelectScreen(),
         '/attendance/take': (context) => const TakeAttendanceScreen(),
         '/attendance/view': (context) => const ViewAttendanceScreen(),

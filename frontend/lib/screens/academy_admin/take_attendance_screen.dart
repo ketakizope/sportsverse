@@ -14,7 +14,22 @@ class Student {
 }
 
 class TakeAttendanceScreen extends StatefulWidget {
-  const TakeAttendanceScreen({super.key});
+  final String? preselectedBranch;
+  final String? preselectedBranchName;
+  final String? preselectedSport;
+  final String? preselectedSportName;
+  final String? preselectedBatch;
+  final String? preselectedBatchName;
+
+  const TakeAttendanceScreen({
+    super.key,
+    this.preselectedBranch,
+    this.preselectedBranchName,
+    this.preselectedSport,
+    this.preselectedSportName,
+    this.preselectedBatch,
+    this.preselectedBatchName,
+  });
 
   @override
   State<TakeAttendanceScreen> createState() => _TakeAttendanceScreenState();
@@ -48,6 +63,31 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
     super.initState();
     _fetchSports();
     _fetchBranches();
+    
+    // Initialize with preselected values if available
+    if (widget.preselectedBranch != null) {
+      _selectedBranch = widget.preselectedBranch;
+      _selectedBranchName = widget.preselectedBranchName;
+    }
+    
+    if (widget.preselectedSport != null) {
+      _selectedSport = widget.preselectedSport;
+      _selectedSportName = widget.preselectedSportName;
+    }
+    
+    if (widget.preselectedBatch != null) {
+      _selectedBatch = widget.preselectedBatch;
+      _selectedBatchName = widget.preselectedBatchName;
+    }
+    
+    // Fetch data based on preselected values
+    if (widget.preselectedBranch != null) {
+      _fetchBatches(widget.preselectedBranch!);
+    }
+    
+    if (widget.preselectedBatch != null) {
+      _fetchStudents();
+    }
   }
 
   @override
@@ -57,7 +97,7 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
   }
 
   Future<void> _fetchSports() async {
-    final response = await apiClient.get('/organizations/sports/');
+    final response = await apiClient.get('/api/organizations/sports/');
     if (response.statusCode == 200) {
       setState(() {
         _sports = jsonDecode(response.body);
@@ -66,7 +106,7 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
   }
 
   Future<void> _fetchBranches() async {
-    final response = await apiClient.get('/organizations/branches/');
+    final response = await apiClient.get('/api/organizations/branches/');
     if (response.statusCode == 200) {
       setState(() {
         _branches = jsonDecode(response.body);
@@ -75,7 +115,7 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
   }
 
   Future<void> _fetchBatches(String branchId) async {
-    final response = await apiClient.get('/organizations/batches/?branch=$branchId');
+    final response = await apiClient.get('/api/organizations/batches/?branch=$branchId');
     if (response.statusCode == 200) {
       setState(() {
         _batches = jsonDecode(response.body);
@@ -94,7 +134,7 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
 
     try {
       final response = await apiClient
-          .get('/organizations/enrollments/?batch=' + _selectedBatch!);
+          .get('/api/organizations/enrollments/?batch=' + _selectedBatch!);
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -143,9 +183,48 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
 
   // Method to handle form submission
   void _handleFormSubmission() {
-    if (_selectedSport != null && _selectedBranch != null && _selectedBatch != null && _selectedDate != null) {
+    if (_validateSelections()) {
       _fetchStudents();
     }
+  }
+  
+  // Method to validate form selections
+  bool _validateSelections() {
+    if (_selectedSport == null) {
+      _showErrorSnackBar('Please select a sport');
+      return false;
+    }
+    if (_selectedBranch == null) {
+      _showErrorSnackBar('Please select a branch');
+      return false;
+    }
+    if (_selectedBatch == null) {
+      _showErrorSnackBar('Please select a batch');
+      return false;
+    }
+    if (_selectedDate == null) {
+      _showErrorSnackBar('Please select a date');
+      return false;
+    }
+    return true;
+  }
+  
+  // Method to show error snackbar
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    
+    // Use Future.microtask to avoid showing SnackBar during build
+    Future.microtask(() {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(10),
+        ),
+      );
+    });
   }
 
   // Method to toggle a single student's attendance
@@ -181,7 +260,7 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
         'date': dateStr,
         'is_present': s.isPresent,
       };
-      final resp = await apiClient.post('/organizations/attendance/', payload, includeAuth: true);
+      final resp = await apiClient.post('/api/organizations/attendance/', payload, includeAuth: true);
       if (resp.statusCode == 201 || resp.statusCode == 200) {
         success += 1;
       }
@@ -224,24 +303,30 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
     // Read preselected params if provided
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args is Map && _selectedBatch == null && _selectedBranch == null && _selectedSport == null) {
-      final int? branchId = args['branchId'] as int?;
-      final int? sportId = args['sportId'] as int?;
-      final int? batchId = args['batchId'] as int?;
+      // Handle both int and String types for IDs
+      final dynamic branchIdRaw = args['branchId'];
+      final dynamic sportIdRaw = args['sportId'];
+      final dynamic batchIdRaw = args['batchId'];
+      
+      final String? branchId = branchIdRaw?.toString();
+      final String? sportId = sportIdRaw?.toString();
+      final String? batchId = batchIdRaw?.toString();
+      
       final String? branchName = args['branchName'] as String?;
       final String? sportName = args['sportName'] as String?;
       final String? batchName = args['batchName'] as String?;
       if (branchId != null) {
-        _selectedBranch = branchId.toString();
+        _selectedBranch = branchId;
         _selectedBranchName = branchName;
         _fetchBatches(_selectedBranch!);
       }
       if (sportId != null) {
         // we only store sport name in dropdown; keep id string to display later
-        _selectedSport = sportId.toString();
+        _selectedSport = sportId;
         _selectedSportName = sportName;
       }
       if (batchId != null) {
-        _selectedBatch = batchId.toString();
+        _selectedBatch = batchId;
         _selectedBatchName = batchName;
       }
     }

@@ -58,7 +58,7 @@ class Batch {
       'sport': sportId,
       'schedule_details': scheduleDetails,
       'max_students': maxStudents,
-      'is_active': isActive,
+      'is_active': true,
     };
   }
 
@@ -171,7 +171,7 @@ class Enrollment {
       'start_date': startDate?.toIso8601String().split('T')[0],
       'end_date': endDate?.toIso8601String().split('T')[0],
       'total_sessions': totalSessions,
-      'is_active': isActive,
+      'is_active': true,
     };
   }
 

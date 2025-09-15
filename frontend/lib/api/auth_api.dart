@@ -12,7 +12,7 @@ class AuthApi {
   AuthApi(this.apiClient);
 
   Future<AuthResponse> login(String username, String password) async {
-    final response = await apiClient.post('/accounts/login/', {
+    final response = await apiClient.post('/api/accounts/login/', {
       'username': username,
       'password': password,
     }, includeAuth: false);
@@ -72,7 +72,7 @@ class AuthApi {
     }
 
     final response = await apiClient.postMultipart(
-      '/accounts/register-academy/',
+      '/api/accounts/register-academy/',
       requestFields,
       file: logoMultipartFile,
       includeAuth: false,
@@ -139,7 +139,7 @@ class AuthApi {
       body['parent_email'] = parentEmail;
 
     final response = await apiClient.post(
-      '/accounts/register-user/',
+      '/api/accounts/register-user/',
       body,
       includeAuth: true, // This requires an authenticated Academy Admin
     );
@@ -230,7 +230,7 @@ class AuthApi {
 
   Future<List<Sport>> getSports() async {
     final response = await apiClient.get(
-      '/organizations/sports/',
+      '/api/organizations/sports/',
       includeAuth: false,
     ); // Sports are public
     if (response.statusCode == 200) {
@@ -243,7 +243,7 @@ class AuthApi {
 
   /// Request password reset via email
   Future<Map<String, dynamic>> requestPasswordReset(String email) async {
-    final response = await apiClient.post('/accounts/password-reset/', {
+    final response = await apiClient.post('/api/accounts/password-reset/', {
       'email': email,
     }, includeAuth: false);
 
@@ -261,7 +261,7 @@ class AuthApi {
     required String token,
     required String newPassword,
   }) async {
-    final response = await apiClient.post('/accounts/password-reset-confirm/', {
+    final response = await apiClient.post('/api/accounts/password-reset-confirm/', {
       'uid': uid,
       'token': token,
       'new_password': newPassword,

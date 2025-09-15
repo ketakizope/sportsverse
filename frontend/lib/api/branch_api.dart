@@ -12,7 +12,7 @@ class BranchApi {
   /// Get all branches for the logged-in academy admin
   Future<List<Branch>> getBranches() async {
     final response = await apiClient.get(
-      '/organizations/branches/',
+      '/api/organizations/branches/',
       includeAuth: true,
     );
 
@@ -38,7 +38,7 @@ class BranchApi {
     };
 
     final response = await apiClient.post(
-      '/organizations/branches/',
+      '/api/organizations/branches/',
       branchData,
       includeAuth: true,
     );
@@ -75,7 +75,7 @@ class BranchApi {
     };
 
     final response = await apiClient.put(
-      '/organizations/branches/$branchId/',
+      '/api/organizations/branches/$branchId/',
       branchData,
       includeAuth: true,
     );
@@ -101,7 +101,7 @@ class BranchApi {
   /// Delete a branch
   Future<void> deleteBranch(int branchId) async {
     final response = await apiClient.delete(
-      '/organizations/branches/$branchId/',
+      '/api/organizations/branches/$branchId/',
       includeAuth: true,
     );
 
@@ -114,7 +114,7 @@ class BranchApi {
   /// Get a specific branch
   Future<Branch> getBranch(int branchId) async {
     final response = await apiClient.get(
-      '/organizations/branches/$branchId/',
+      '/api/organizations/branches/$branchId/',
       includeAuth: true,
     );
 

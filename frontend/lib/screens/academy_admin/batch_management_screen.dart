@@ -69,17 +69,21 @@ class _BatchManagementScreenState extends State<BatchManagementScreen> {
     if (confirmed == true) {
       try {
         await batchApi.deleteBatch(batch.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Batch deleted successfully')),
-        );
-        _loadBatches();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Batch deleted successfully')),
+          );
+          _loadBatches();
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete batch: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete batch: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -153,13 +157,9 @@ class _BatchManagementScreenState extends State<BatchManagementScreen> {
                     margin: const EdgeInsets.only(bottom: 12),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: batch.isActive
-                            ? Colors.blue
-                            : Colors.grey,
+                        backgroundColor: Colors.blue,
                         child: Icon(
-                          batch.isActive
-                              ? Icons.batch_prediction
-                              : Icons.batch_prediction_outlined,
+                          Icons.groups,
                           color: Colors.white,
                         ),
                       ),
@@ -173,17 +173,7 @@ class _BatchManagementScreenState extends State<BatchManagementScreen> {
                           Text('Sport: ${batch.sportName}'),
                           Text('Branch: ${batch.branchName}'),
                           Text('Schedule: ${batch.scheduleDisplay}'),
-                          Text('Max Students: ${batch.maxStudents}'),
-                          const SizedBox(height: 4),
-                          Text(
-                            batch.isActive ? 'Active' : 'Inactive',
-                            style: TextStyle(
-                              color: batch.isActive
-                                  ? Colors.green
-                                  : Colors.grey,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                          Text('Max Students: ${batch.maxStudents}')
                         ],
                       ),
                       trailing: PopupMenuButton<String>(
@@ -274,7 +264,7 @@ class _AddEditBatchScreenState extends State<AddEditBatchScreen> {
   List<Sport> sports = [];
   Branch? _selectedBranch;
   Sport? _selectedSport;
-  bool _isActive = true;
+
   bool _isLoading = false;
   bool _dataLoading = true;
   String? _dataError;
@@ -330,7 +320,7 @@ class _AddEditBatchScreenState extends State<AddEditBatchScreen> {
     if (widget.batch != null) {
       _nameController.text = widget.batch!.name;
       _maxStudentsController.text = widget.batch!.maxStudents.toString();
-      _isActive = widget.batch!.isActive;
+
 
       // Find selected branch and sport
       if (branches.isNotEmpty) {
@@ -417,7 +407,7 @@ class _AddEditBatchScreenState extends State<AddEditBatchScreen> {
           sportId: _selectedSport!.id,
           scheduleDetails: scheduleDetails,
           maxStudents: int.parse(_maxStudentsController.text),
-          isActive: _isActive,
+          isActive: widget.batch!.isActive,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -431,7 +421,7 @@ class _AddEditBatchScreenState extends State<AddEditBatchScreen> {
           sportId: _selectedSport!.id,
           scheduleDetails: scheduleDetails,
           maxStudents: int.parse(_maxStudentsController.text),
-          isActive: _isActive,
+          isActive: true,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -665,18 +655,7 @@ class _AddEditBatchScreenState extends State<AddEditBatchScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              SwitchListTile(
-                title: const Text('Active Status'),
-                subtitle: Text(
-                  _isActive ? 'Batch is active' : 'Batch is inactive',
-                ),
-                value: _isActive,
-                onChanged: (value) {
-                  setState(() {
-                    _isActive = value;
-                  });
-                },
-              ),
+
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _isLoading ? null : _saveBatch,

@@ -36,7 +36,7 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
   }
 
   Future<void> _fetchBranches() async {
-    final response = await apiClient.get('/organizations/branches/');
+    final response = await apiClient.get('/api/organizations/branches/');
     if (response.statusCode == 200) {
       setState(() {
         _branches = jsonDecode(response.body);
@@ -47,7 +47,7 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
   Future<void> _fetchBatches(String branchId) async {
     try {
       final response =
-          await apiClient.get('/organizations/batches/?branch=$branchId');
+          await apiClient.get('/api/organizations/batches/?branch=$branchId');
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         setState(() {
@@ -68,7 +68,7 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
   Future<void> _fetchStudents(String batchId) async {
     try {
       final response =
-          await apiClient.get('/organizations/enrollments/?batch=$batchId');
+          await apiClient.get('/api/organizations/enrollments/?batch=$batchId');
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         final List<dynamic> items = decoded is List
@@ -104,13 +104,17 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
   }
 
   Future<void> _viewAttendance() async {
+    if (!_validateSelections()) {
+      return;
+    }
+    
     setState(() {
       _showReport = false;
       _attendanceRecords = [];
     });
     try {
       final response = await apiClient.get(
-          '/organizations/attendance/?student=' + (_selectedStudentId ?? '') + '&batch=' + (_selectedBatch ?? ''));
+          '/api/organizations/attendance/?student=' + (_selectedStudentId ?? '') + '&batch=' + (_selectedBatch ?? ''));
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         setState(() {
@@ -129,23 +133,64 @@ class _ViewAttendanceScreenState extends State<ViewAttendanceScreen> {
       });
     }
   }
+  
+  // Method to validate form selections
+  bool _validateSelections() {
+    if (_selectedBranch == null) {
+      _showErrorSnackBar('Please select a branch');
+      return false;
+    }
+    if (_selectedBatch == null) {
+      _showErrorSnackBar('Please select a batch');
+      return false;
+    }
+    if (_selectedStudentId == null || _selectedStudentId!.isEmpty) {
+      _showErrorSnackBar('Please select a student');
+      return false;
+    }
+    return true;
+  }
+  
+  // Method to show error snackbar
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    
+    // Use Future.microtask to avoid showing SnackBar during build
+    Future.microtask(() {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(10),
+        ),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     // Preselect from arguments once on first build
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args is Map && _selectedBranch == null && _selectedBatch == null) {
-      final int? branchId = args['branchId'] as int?;
-      final int? batchId = args['batchId'] as int?;
+      // Handle both int and String types for IDs
+      final dynamic branchIdRaw = args['branchId'];
+      final dynamic batchIdRaw = args['batchId'];
+      
+      final String? branchId = branchIdRaw?.toString();
+      final String? batchId = batchIdRaw?.toString();
+      
       final String? branchName = args['branchName'] as String?;
       final String? batchName = args['batchName'] as String?;
+      
       if (branchId != null) {
-        _selectedBranch = branchId.toString();
+        _selectedBranch = branchId;
         _selectedBranchName = branchName;
         _fetchBatches(_selectedBranch!);
       }
       if (batchId != null) {
-        _selectedBatch = batchId.toString();
+        _selectedBatch = batchId;
         _selectedBatchName = batchName;
         // ensure students are loaded when batch is prefilled
         _fetchStudents(_selectedBatch!);

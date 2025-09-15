@@ -12,7 +12,7 @@ class BatchApi {
   /// Get all batches for the logged-in academy admin
   Future<List<Batch>> getBatches() async {
     final response = await apiClient.get(
-      '/organizations/batches/',
+      '/api/organizations/batches/',
       includeAuth: true,
     );
 
@@ -44,7 +44,7 @@ class BatchApi {
     };
 
     final response = await apiClient.post(
-      '/organizations/batches/',
+      '/api/organizations/batches/',
       batchData,
       includeAuth: true,
     );
@@ -93,7 +93,7 @@ class BatchApi {
     };
 
     final response = await apiClient.put(
-      '/organizations/batches/$batchId/',
+      '/api/organizations/batches/$batchId/',
       batchData,
       includeAuth: true,
     );
@@ -125,7 +125,7 @@ class BatchApi {
   /// Delete a batch
   Future<void> deleteBatch(int batchId) async {
     final response = await apiClient.delete(
-      '/organizations/batches/$batchId/',
+      '/api/organizations/batches/$batchId/',
       includeAuth: true,
     );
 
@@ -138,7 +138,7 @@ class BatchApi {
   /// Get a specific batch
   Future<Batch> getBatch(int batchId) async {
     final response = await apiClient.get(
-      '/organizations/batches/$batchId/',
+      '/api/organizations/batches/$batchId/',
       includeAuth: true,
     );
 
@@ -155,7 +155,7 @@ class BatchApi {
     int? batchId,
     int? studentId,
   }) async {
-    String endpoint = '/organizations/enrollments/';
+    String endpoint = '/api/organizations/enrollments/';
     List<String> queryParams = [];
 
     if (batchId != null) {
@@ -210,7 +210,7 @@ class BatchApi {
     }
 
     final response = await apiClient.post(
-      '/organizations/enrollments/',
+      '/api/organizations/enrollments/',
       enrollmentData,
       includeAuth: true,
     );
@@ -267,7 +267,7 @@ class BatchApi {
     }
 
     final response = await apiClient.put(
-      '/organizations/enrollments/$enrollmentId/',
+      '/api/organizations/enrollments/$enrollmentId/',
       enrollmentData,
       includeAuth: true,
     );
@@ -283,7 +283,7 @@ class BatchApi {
   /// Delete an enrollment
   Future<void> deleteEnrollment(int enrollmentId) async {
     final response = await apiClient.delete(
-      '/organizations/enrollments/$enrollmentId/',
+      '/api/organizations/enrollments/$enrollmentId/',
       includeAuth: true,
     );
 
@@ -298,7 +298,7 @@ class BatchApi {
     Map<String, dynamic> studentEnrollmentData,
   ) async {
     final response = await apiClient.post(
-      '/organizations/student-enrollments/',
+      '/api/organizations/student-enrollments/',
       studentEnrollmentData,
       includeAuth: true,
     );
