@@ -241,6 +241,10 @@ class StudentEnrollmentSerializer(serializers.Serializer):
     parent_phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
     parent_email = serializers.EmailField(required=False, allow_blank=True)
     
+    # User account fields
+    password = serializers.CharField(write_only=True, style={'input_type': 'password'})
+    must_change_password = serializers.BooleanField(default=True)
+    
     # Enrollment fields
     batch = serializers.PrimaryKeyRelatedField(queryset=Batch.objects.none())
     enrollment_type = serializers.ChoiceField(choices=Enrollment.ENROLLMENT_TYPE_CHOICES)
@@ -271,11 +275,18 @@ class StudentEnrollmentSerializer(serializers.Serializer):
         return attrs
     
     def create(self, validated_data):
+        from accounts.models import CustomUser
+        from django.db import transaction
+        
         request = self.context.get('request')
         if not (request and hasattr(request.user, 'academy_admin_profile')):
             raise serializers.ValidationError("Only academy admins can create student enrollments.")
         
         organization = request.user.academy_admin_profile.organization
+        
+        # Extract user account data
+        password = validated_data.pop('password')
+        must_change_password = validated_data.pop('must_change_password', True)
         
         # Extract enrollment data
         batch = validated_data.pop('batch')
@@ -283,26 +294,51 @@ class StudentEnrollmentSerializer(serializers.Serializer):
         total_sessions = validated_data.pop('total_sessions', None)
         end_date = validated_data.pop('end_date', None)
         
-        # Create student
-        validated_data['organization'] = organization
-        student = StudentProfile.objects.create(**validated_data)
-        
-        # Create enrollment (will start when first attendance is taken)
-        enrollment_data = {
-            'student': student,
-            'batch': batch,
-            'organization': organization,
-            'enrollment_type': enrollment_type,
-            'total_sessions': total_sessions,
-            'end_date': end_date,
-        }
-        
-        enrollment = Enrollment.objects.create(**enrollment_data)
-        
-        return {
-            'student': student,
-            'enrollment': enrollment
-        }
+        with transaction.atomic():
+            # Create user account for student
+            username = f"{validated_data['first_name'].lower()}.{validated_data['last_name'].lower()}"
+            # Ensure unique username
+            counter = 1
+            original_username = username
+            while CustomUser.objects.filter(username=username).exists():
+                username = f"{original_username}{counter}"
+                counter += 1
+            
+            user = CustomUser.objects.create_user(
+                username=username,
+                email=validated_data.get('email') or '',
+                password=password,
+                first_name=validated_data['first_name'],
+                last_name=validated_data['last_name'],
+                phone_number=validated_data.get('phone_number'),
+                gender=validated_data.get('gender'),
+                date_of_birth=validated_data['date_of_birth'],
+                user_type='STUDENT',
+                must_change_password=must_change_password
+            )
+            
+            # Create student profile
+            validated_data['organization'] = organization
+            validated_data['user'] = user
+            student = StudentProfile.objects.create(**validated_data)
+            
+            # Create enrollment (will start when first attendance is taken)
+            enrollment_data = {
+                'student': student,
+                'batch': batch,
+                'organization': organization,
+                'enrollment_type': enrollment_type,
+                'total_sessions': total_sessions,
+                'end_date': end_date,
+            }
+            
+            enrollment = Enrollment.objects.create(**enrollment_data)
+            
+            return {
+                'student': student,
+                'enrollment': enrollment,
+                'user': user
+            }
 
 
 class AttendanceSerializer(serializers.ModelSerializer):

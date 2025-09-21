@@ -8,15 +8,18 @@ import 'package:sportsverse_app/api/auth_api.dart';
 import 'package:sportsverse_app/models/user.dart';
 
 class AuthProvider with ChangeNotifier {
-  User? _currentUser;
   String? _token;
+  User? _currentUser;
   ProfileDetails? _profileDetails;
+  bool _mustChangePassword = false;
   bool _isLoading = false;
   String? _errorMessage;
 
+// Getters
   User? get currentUser => _currentUser;
   String? get token => _token;
   ProfileDetails? get profileDetails => _profileDetails;
+  bool get mustChangePassword => _mustChangePassword;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
@@ -44,6 +47,7 @@ class AuthProvider with ChangeNotifier {
       _currentUser = authResponse.user;
       _token = authResponse.token;
       _profileDetails = authResponse.profileDetails;
+      _mustChangePassword = authResponse.mustChangePassword;
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -139,6 +143,12 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       rethrow;
     }
+  }
+
+  // Method to clear must_change_password flag
+  void clearMustChangePassword() {
+    _mustChangePassword = false;
+    notifyListeners();
   }
 
   void logout() {

@@ -27,6 +27,8 @@ class _AddStudentEnrollmentScreenState
   final _parentNameController = TextEditingController();
   final _parentPhoneController = TextEditingController();
   final _parentEmailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   DateTime? _dateOfBirth;
   String _gender = 'M';
@@ -77,6 +79,8 @@ class _AddStudentEnrollmentScreenState
     _parentNameController.dispose();
     _parentPhoneController.dispose();
     _parentEmailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _totalSessionsController.dispose();
     _pageController.dispose();
     super.dispose();
@@ -128,6 +132,17 @@ class _AddStudentEnrollmentScreenState
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Validate password
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Passwords do not match'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       isLoading = true;
     });
@@ -141,6 +156,8 @@ class _AddStudentEnrollmentScreenState
         'address': _addressController.text, // allow blank string
         'batch': _selectedBatch!.id,
         'enrollment_type': _enrollmentType,
+        'password': _passwordController.text, // Admin-set password
+        'must_change_password': true, // Flag to force password change on first login
       };
 
       if (_emailController.text.isNotEmpty) {
@@ -171,11 +188,10 @@ class _AddStudentEnrollmentScreenState
       await batchApi.createStudentEnrollment(studentEnrollmentData);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Student enrolled successfully! Enrollment will start when first attendance is taken.',
-          ),
+        SnackBar(
+          content: Text('Student enrolled successfully! Password: ${_passwordController.text}'),
           backgroundColor: Colors.green,
+          duration: const Duration(seconds: 5),
         ),
       );
 
@@ -373,22 +389,40 @@ class _AddStudentEnrollmentScreenState
           TextFormField(
             controller: _emailController,
             decoration: const InputDecoration(
-              labelText: 'Email (Optional)',
+              labelText: 'Email *',
               prefixIcon: Icon(Icons.email),
               border: OutlineInputBorder(),
             ),
             keyboardType: TextInputType.emailAddress,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Email is required';
+              }
+              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                return 'Please enter a valid email address';
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 16),
 
           TextFormField(
             controller: _phoneController,
             decoration: const InputDecoration(
-              labelText: 'Phone Number (Optional)',
+              labelText: 'Phone Number *',
               prefixIcon: Icon(Icons.phone),
               border: OutlineInputBorder(),
             ),
             keyboardType: TextInputType.phone,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Phone number is required';
+              }
+              if (value.length < 10) {
+                return 'Please enter a valid phone number';
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 16),
 
@@ -400,6 +434,52 @@ class _AddStudentEnrollmentScreenState
               border: OutlineInputBorder(),
             ),
             maxLines: 3,
+          ),
+          const SizedBox(height: 24),
+
+          const Text(
+            'Login Credentials',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+
+          const SizedBox(height: 16),
+
+          TextFormField(
+            controller: _passwordController,
+            decoration: const InputDecoration(
+              labelText: 'Set Password for Student *',
+              prefixIcon: Icon(Icons.lock),
+              border: OutlineInputBorder(),
+              helperText: 'Student will be asked to change this on first login',
+            ),
+            obscureText: true,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Password is required';
+              }
+              if (value.length < 6) {
+                return 'Password must be at least 6 characters';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+
+          TextFormField(
+            controller: _confirmPasswordController,
+            decoration: const InputDecoration(
+              labelText: 'Confirm Password *',
+              prefixIcon: Icon(Icons.lock_outline),
+              border: OutlineInputBorder(),
+            ),
+            obscureText: true,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Please confirm your password';
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 24),
 

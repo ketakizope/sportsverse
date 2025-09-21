@@ -133,7 +133,8 @@ class LoginView(APIView):
             return Response({
                 "token": token.key,
                 "user": UserSerializer(user).data,
-                "profile_details": profile_data
+                "profile_details": profile_data,
+                "must_change_password": user.must_change_password
             }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -295,6 +296,48 @@ class PasswordResetConfirmView(APIView):
                 'error': 'Invalid reset link'
             }, status=status.HTTP_400_BAD_REQUEST)
 
+
+class ChangePasswordView(APIView):
+    """
+    API endpoint for authenticated users to change their password.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        current_password = request.data.get('current_password')
+        new_password = request.data.get('new_password')
+
+        if not all([current_password, new_password]):
+            return Response({
+                'error': 'Current password and new password are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate current password
+        if not request.user.check_password(current_password):
+            return Response({
+                'error': 'Current password is incorrect'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate new password strength
+        if len(new_password) < 8:
+            return Response({
+                'error': 'New password must be at least 8 characters long'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if new password is different from current
+        if current_password == new_password:
+            return Response({
+                'error': 'New password must be different from current password'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Set the new password and reset must_change_password flag
+        request.user.set_password(new_password)
+        request.user.must_change_password = False
+        request.user.save()
+
+        return Response({
+            'message': 'Password changed successfully'
+        }, status=status.HTTP_200_OK)
 
 class CoachListView(APIView):
     """

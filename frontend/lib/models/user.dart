@@ -106,11 +106,13 @@ class AuthResponse {
   final String token;
   final User user;
   final ProfileDetails? profileDetails;
+  final bool mustChangePassword;
 
   AuthResponse({
     required this.token,
     required this.user,
     this.profileDetails,
+    required this.mustChangePassword,
   });
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
@@ -120,6 +122,7 @@ class AuthResponse {
       profileDetails: json['profile_details'] != null
           ? ProfileDetails.fromJson(json['profile_details'])
           : null,
+      mustChangePassword: json['must_change_password'] ?? false,
     );
   }
 }

@@ -7,6 +7,7 @@ from .views import (
     RegisterCoachStudentStaffView,
     PasswordResetRequestView,
     PasswordResetConfirmView,
+    ChangePasswordView,
     CoachListView,
     CoachAssignmentView
 )
@@ -17,6 +18,7 @@ urlpatterns = [
     path('register-user/', RegisterCoachStudentStaffView.as_view(), name='register-coach-student-staff'),
     path('password-reset/', PasswordResetRequestView.as_view(), name='password-reset'),
     path('password-reset-confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
+    path('change-password/', ChangePasswordView.as_view(), name='change-password'),
     
     # Coach management endpoints
     path('coaches/', CoachListView.as_view(), name='coach-list'),

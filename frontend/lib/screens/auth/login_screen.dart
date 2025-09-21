@@ -18,7 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _login() async {
     if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
-      _showSnackBar('Please enter username and password.', Colors.red);
+      _showSnackBar('Please enter username/email and password.', Colors.red);
       return;
     }
 
@@ -81,8 +81,9 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(
                 controller: _usernameController,
                 decoration: const InputDecoration(
-                  labelText: 'Username',
+                  labelText: 'Username or Email',
                   prefixIcon: Icon(Icons.person),
+                  hintText: 'Enter your username or email address',
                 ),
                 keyboardType: TextInputType.text,
               ),

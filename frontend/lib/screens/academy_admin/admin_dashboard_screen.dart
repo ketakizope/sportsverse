@@ -3,10 +3,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sportsverse_app/providers/auth_provider.dart';
+import 'package:sportsverse_app/api/batch_api.dart';
+import 'package:sportsverse_app/models/batch.dart';
 import 'package:sportsverse_app/screens/academy_admin/branch_management_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/batch_management_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/coach_assignment_screen.dart';
-import 'package:sportsverse_app/screens/academy_admin/student_enrollment_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/add_student_enrollment_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
@@ -227,28 +228,6 @@ class AdminDashboardScreen extends StatelessWidget {
                     () => Navigator.pushNamed(context, '/attendance'),
                   ),
                 ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    context,
-                    'Students',
-                    'Enroll',
-                    Icons.school,
-                    const Color(0xFF43e97b),
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const StudentEnrollmentScreen()),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 20),
-                const Expanded(child: SizedBox.shrink()),
               ],
             ),
             

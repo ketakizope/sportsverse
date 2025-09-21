@@ -10,6 +10,7 @@ import 'package:sportsverse_app/screens/auth/login_screen.dart';
 import 'package:sportsverse_app/screens/auth/register_academy_screen.dart';
 import 'package:sportsverse_app/screens/auth/forgot_password_screen.dart';
 import 'package:sportsverse_app/screens/auth/password_reset_confirm_screen.dart';
+import 'package:sportsverse_app/screens/auth/change_password_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/admin_dashboard_screen.dart';
 import 'package:sportsverse_app/screens/auth/register_user_screen.dart'; // New screen for coach/student/staff registration
 import 'package:sportsverse_app/screens/academy_admin/attendance_branch_select_screen.dart';
@@ -65,6 +66,11 @@ class _SportsVerseAppState extends State<SportsVerseApp> {
               body: Center(child: CircularProgressIndicator()),
             );
           } else if (authProvider.currentUser != null) {
+            // Check if user must change password first
+            if (authProvider.mustChangePassword) {
+              return const ChangePasswordScreen();
+            }
+            
             // Route based on user type after login
             switch (authProvider.currentUser!.userType) {
               case 'PLATFORM_ADMIN':

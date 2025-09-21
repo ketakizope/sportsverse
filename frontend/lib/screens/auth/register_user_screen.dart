@@ -202,10 +202,6 @@ class _RegisterUserScreenState extends State<RegisterUserScreen> {
                               child: Text('Coach'),
                             ),
                             DropdownMenuItem(
-                              value: 'STUDENT',
-                              child: Text('Student'),
-                            ),
-                            DropdownMenuItem(
                               value: 'STAFF',
                               child: Text('Staff'),
                             ),
@@ -235,19 +231,16 @@ class _RegisterUserScreenState extends State<RegisterUserScreen> {
                         TextFormField(
                           controller: _emailController,
                           decoration: const InputDecoration(
-                            labelText: 'Email (Optional for Students)',
+                            labelText: 'Email',
                             prefixIcon: Icon(Icons.email),
                           ),
                           keyboardType: TextInputType.emailAddress,
                           validator: (value) {
-                            if (_selectedUserType != 'STUDENT' &&
-                                (value == null || value.isEmpty)) {
-                              return 'Email is required for Coaches/Staff.';
+                            if (value == null || value.isEmpty) {
+                              return 'Email is required.';
                             }
-                            if (value != null &&
-                                value.isNotEmpty &&
-                                !RegExp(
-                                  r'^[^@]+@[^@]+\.[^@]+',
+                            if (!RegExp(
+                              r'^[^@]+@[^@]+\.[^@]+',
                                 ).hasMatch(value)) {
                               return 'Please enter a valid email address.';
                             }

@@ -274,6 +274,24 @@ class AuthApi {
       throw Exception(errorData['error'] ?? 'Failed to reset password');
     }
   }
+
+  /// Change password for authenticated user
+  Future<Map<String, dynamic>> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
+    final response = await apiClient.post('/api/accounts/change-password/', {
+      'current_password': currentPassword,
+      'new_password': newPassword,
+    }, includeAuth: true);
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      final errorData = json.decode(response.body);
+      throw Exception(errorData['error'] ?? 'Failed to change password');
+    }
+  }
 }
 
 final authApi = AuthApi(apiClient); // Global instance
