@@ -9,7 +9,9 @@ from .views import (
     PasswordResetConfirmView,
     ChangePasswordView,
     CoachListView,
-    CoachAssignmentView
+    CoachAssignmentView,
+    StudentFinancialsView,
+    StudentListView
 )
 
 urlpatterns = [
@@ -23,4 +25,8 @@ urlpatterns = [
     # Coach management endpoints
     path('coaches/', CoachListView.as_view(), name='coach-list'),
     path('coaches/<int:coach_id>/assign-branches/', CoachAssignmentView.as_view(), name='coach-assignment'),
+
+    # Student endpoints
+    path('students/', StudentListView.as_view(), name='student-list'),
+    path('students/<int:student_id>/financials/', StudentFinancialsView.as_view(), name='student-financials'),
 ]

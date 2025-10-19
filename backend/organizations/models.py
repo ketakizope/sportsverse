@@ -62,6 +62,14 @@ class Batch(models.Model):
     max_students = models.IntegerField(default=20)
     is_active = models.BooleanField(default=True)
 
+    # Fee structure
+    PAYMENT_POLICY_CHOICES = (
+        ('PRE_PAID', 'Pre-paid'),
+        ('POST_PAID', 'Post-paid'),
+    )
+    fee_per_session = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    payment_policy = models.CharField(max_length=20, choices=PAYMENT_POLICY_CHOICES, default='POST_PAID')
+
     def __str__(self):
         return f"{self.name} - {self.sport.name} at {self.branch.name} ({self.organization.academy_name})"
 
@@ -148,4 +156,16 @@ class Attendance(models.Model):
             self.enrollment.sessions_attended += 1
             self.enrollment.save()
             self.is_session_deducted = True
-            super().save()
+            super().save(*args, **kwargs)
+
+        # For POST_PAID batches, create a fee transaction for each attendance
+        if is_new and self.batch.payment_policy == 'POST_PAID' and self.batch.fee_per_session is not None:
+            from payments.models import FeeTransaction
+            FeeTransaction.objects.create(
+                organization=self.organization,
+                student=self.student,
+                enrollment=self.enrollment,
+                amount=self.batch.fee_per_session,
+                due_date=self.date, # Or some other logic for due date
+                is_paid=False
+            )

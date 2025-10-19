@@ -1,6 +1,6 @@
 # sportsverse/backend/accounts/views.py
 
-from rest_framework import status
+from rest_framework import status, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -12,14 +12,19 @@ from django.template.loader import render_to_string
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.conf import settings
+from django.db.models import Sum, Q, DecimalField
+from django.shortcuts import get_object_or_404
 import json
 import logging
 
 logger = logging.getLogger(__name__)
 
-from .serializers import RegisterAcademySerializer, LoginSerializer, RegisterCoachStudentStaffSerializer, UserSerializer, CoachAssignmentSerializer
-from .models import CustomUser, AcademyAdminProfile, CoachProfile
+from .serializers import (RegisterAcademySerializer, LoginSerializer, 
+                          RegisterCoachStudentStaffSerializer, UserSerializer, 
+                          CoachAssignmentSerializer, StudentFinancialsSerializer, StudentListSerializer)
+from .models import CustomUser, AcademyAdminProfile, CoachProfile, StudentProfile
 from organizations.models import Organization
+from payments.models import FeeTransaction
 
 class RegisterAcademyView(APIView):
     """
@@ -383,3 +388,43 @@ class CoachAssignmentView(APIView):
             }, status=status.HTTP_200_OK)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class StudentFinancialsView(generics.RetrieveAPIView):
+    """
+    API endpoint to retrieve financial summary for a specific student.
+    """
+    serializer_class = StudentFinancialsSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        student_id = self.kwargs.get('student_id')
+        student = get_object_or_404(StudentProfile, id=student_id)
+
+        # Security check: Ensure the requesting admin belongs to the same organization as the student
+        if hasattr(self.request.user, 'academy_admin_profile'):
+            if student.organization != self.request.user.academy_admin_profile.organization:
+                raise PermissionError("You do not have permission to view this student's financials.")
+        else:
+            # Add other permission checks if necessary (e.g., for parents, staff)
+            raise PermissionError("You do not have permission to view this student's financials.")
+
+        # Calculate total paid and total due amounts
+        transactions = FeeTransaction.objects.filter(student=student)
+        
+        total_paid = transactions.filter(is_paid=True).aggregate(total=Sum('amount', output_field=DecimalField()))['total'] or 0.00
+        total_due = transactions.filter(is_paid=False).aggregate(total=Sum('amount', output_field=DecimalField()))['total'] or 0.00
+
+        return {'total_paid': total_paid, 'total_due': total_due}
+
+class StudentListView(generics.ListAPIView):
+    """
+    API endpoint to list all students for the logged-in academy admin.
+    """
+    serializer_class = StudentListSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        if hasattr(self.request.user, 'academy_admin_profile'):
+            organization = self.request.user.academy_admin_profile.organization
+            return StudentProfile.objects.filter(organization=organization).order_by('first_name', 'last_name')
+        return StudentProfile.objects.none()

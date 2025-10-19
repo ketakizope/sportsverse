@@ -9,6 +9,7 @@ import 'package:sportsverse_app/screens/academy_admin/branch_management_screen.d
 import 'package:sportsverse_app/screens/academy_admin/batch_management_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/coach_assignment_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/add_student_enrollment_screen.dart';
+import 'package:sportsverse_app/screens/academy_admin/student_management_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -279,6 +280,20 @@ class AdminDashboardScreen extends StatelessWidget {
                           ),
                         );
                       }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildActionButton(
+                    context,
+                    'Student Financials',
+                    'View student payment status',
+                    Icons.monetization_on,
+                    const Color(0xFFfccb90),
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const StudentManagementScreen()),
+                      );
                     },
                   ),
                 ],

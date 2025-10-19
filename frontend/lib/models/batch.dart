@@ -11,6 +11,8 @@ class Batch {
   final String organizationName;
   final String branchName;
   final String sportName;
+  final double? feePerSession;
+  final String paymentPolicy;
 
   Batch({
     required this.id,
@@ -23,6 +25,8 @@ class Batch {
     required this.organizationName,
     required this.branchName,
     required this.sportName,
+    this.feePerSession,
+    required this.paymentPolicy,
   });
 
   factory Batch.fromJson(Map<String, dynamic> json) {
@@ -47,6 +51,8 @@ class Batch {
       organizationName: json['organization_name'] ?? '',
       branchName: json['branch_name'] ?? '',
       sportName: json['sport_name'] ?? '',
+      feePerSession: json['fee_per_session'] != null ? double.parse(json['fee_per_session'].toString()) : null,
+      paymentPolicy: json['payment_policy'] ?? 'POST_PAID',
     );
   }
 
@@ -59,6 +65,8 @@ class Batch {
       'schedule_details': scheduleDetails,
       'max_students': maxStudents,
       'is_active': true,
+      'fee_per_session': feePerSession,
+      'payment_policy': paymentPolicy,
     };
   }
 

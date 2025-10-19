@@ -217,6 +217,25 @@ class StudentEnrollmentCreateView(generics.CreateAPIView):
             # Return combined response with student and enrollment data
             student_data = StudentProfileSerializer(result['student']).data
             enrollment_data = EnrollmentSerializer(result['enrollment']).data
+
+            # --- Logic for PRE_PAID Fee Transaction ---
+            enrollment = result['enrollment']
+            batch = enrollment.batch
+            if batch.payment_policy == 'PRE_PAID' and batch.fee_per_session is not None and enrollment.total_sessions is not None:
+                from payments.models import FeeTransaction
+                from decimal import Decimal
+
+                total_fee = Decimal(batch.fee_per_session) * Decimal(enrollment.total_sessions)
+                
+                FeeTransaction.objects.create(
+                    organization=enrollment.organization,
+                    student=enrollment.student,
+                    enrollment=enrollment,
+                    amount=total_fee,
+                    due_date=enrollment.date_enrolled.date(), # Or other due date logic
+                    is_paid=False
+                )
+            # --- End of Fee Logic ---
             
             return Response({
                 'message': 'Student created and enrolled successfully',

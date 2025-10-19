@@ -259,6 +259,9 @@ class _AddEditBatchScreenState extends State<AddEditBatchScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _maxStudentsController = TextEditingController();
+  final _feeController = TextEditingController();
+
+  String? _selectedPaymentPolicy = 'POST_PAID'; // Default value
 
   List<Branch> branches = [];
   List<Sport> sports = [];
@@ -320,6 +323,8 @@ class _AddEditBatchScreenState extends State<AddEditBatchScreen> {
     if (widget.batch != null) {
       _nameController.text = widget.batch!.name;
       _maxStudentsController.text = widget.batch!.maxStudents.toString();
+      _feeController.text = widget.batch!.feePerSession?.toString() ?? '';
+      _selectedPaymentPolicy = widget.batch!.paymentPolicy;
 
 
       // Find selected branch and sport
@@ -360,6 +365,7 @@ class _AddEditBatchScreenState extends State<AddEditBatchScreen> {
   void dispose() {
     _nameController.dispose();
     _maxStudentsController.dispose();
+    _feeController.dispose();
     super.dispose();
   }
 
@@ -408,6 +414,8 @@ class _AddEditBatchScreenState extends State<AddEditBatchScreen> {
           scheduleDetails: scheduleDetails,
           maxStudents: int.parse(_maxStudentsController.text),
           isActive: widget.batch!.isActive,
+          feePerSession: double.parse(_feeController.text),
+          paymentPolicy: _selectedPaymentPolicy!,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -422,6 +430,8 @@ class _AddEditBatchScreenState extends State<AddEditBatchScreen> {
           scheduleDetails: scheduleDetails,
           maxStudents: int.parse(_maxStudentsController.text),
           isActive: true,
+          feePerSession: double.parse(_feeController.text),
+          paymentPolicy: _selectedPaymentPolicy!,
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -573,6 +583,51 @@ class _AddEditBatchScreenState extends State<AddEditBatchScreen> {
                   final number = int.tryParse(value);
                   if (number == null || number < 1) {
                     return 'Please enter a valid number';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _feeController,
+                decoration: const InputDecoration(
+                  labelText: 'Fee Per Session',
+                  hintText: 'e.g., 500',
+                  prefixIcon: Icon(Icons.attach_money),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Fee per session is required';
+                  }
+                  final number = double.tryParse(value);
+                  if (number == null || number < 0) {
+                    return 'Please enter a valid fee';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedPaymentPolicy,
+                decoration: const InputDecoration(
+                  labelText: 'Payment Policy',
+                  prefixIcon: Icon(Icons.payment),
+                ),
+                items: ['PRE_PAID', 'POST_PAID'].map((policy) {
+                  return DropdownMenuItem(
+                    value: policy,
+                    child: Text(policy == 'PRE_PAID' ? 'Pre-paid' : 'Post-paid'),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedPaymentPolicy = value;
+                  });
+                },
+                validator: (value) {
+                  if (value == null) {
+                    return 'Please select a payment policy';
                   }
                   return null;
                 },

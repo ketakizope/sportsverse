@@ -16,6 +16,23 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone_number', 'gender', 'date_of_birth', 'user_type']
         read_only_fields = ['id', 'user_type'] # User type is set during creation, not by user directly
 
+class StudentFinancialsSerializer(serializers.Serializer):
+    """
+    Serializer for summarizing a student's financial status.
+    """
+    total_paid = serializers.DecimalField(max_digits=10, decimal_places=2)
+    total_due = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+class StudentListSerializer(serializers.ModelSerializer):
+    """
+    Serializer for listing students in the academy.
+    """
+    full_name = serializers.CharField(source='get_full_name', read_only=True)
+
+    class Meta:
+        model = StudentProfile
+        fields = ['id', 'full_name']
+
 class RegisterAcademySerializer(serializers.Serializer):
     """
     Serializer for registering a new Organization and its Academy Admin.

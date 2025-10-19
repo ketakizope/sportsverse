@@ -33,6 +33,8 @@ class BatchApi {
     required Map<String, dynamic> scheduleDetails,
     int maxStudents = 20,
     bool isActive = true,
+    required double feePerSession,
+    required String paymentPolicy,
   }) async {
     final batchData = {
       'name': name,
@@ -41,6 +43,8 @@ class BatchApi {
       'schedule_details': scheduleDetails,
       'max_students': maxStudents,
       'is_active': isActive,
+      'fee_per_session': feePerSession,
+      'payment_policy': paymentPolicy,
     };
 
     final response = await apiClient.post(
@@ -82,6 +86,8 @@ class BatchApi {
     required Map<String, dynamic> scheduleDetails,
     required int maxStudents,
     required bool isActive,
+    required double feePerSession,
+    required String paymentPolicy,
   }) async {
     final batchData = {
       'name': name,
@@ -90,6 +96,8 @@ class BatchApi {
       'schedule_details': scheduleDetails,
       'max_students': maxStudents,
       'is_active': isActive,
+      'fee_per_session': feePerSession,
+      'payment_policy': paymentPolicy,
     };
 
     final response = await apiClient.put(

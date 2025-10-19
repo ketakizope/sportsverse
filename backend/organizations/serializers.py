@@ -57,7 +57,7 @@ class BatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Batch
         fields = ['id', 'name', 'branch', 'sport', 'schedule_details', 'max_students', 'is_active', 
-                 'organization_name', 'branch_name', 'sport_name']
+                 'organization_name', 'branch_name', 'sport_name', 'fee_per_session', 'payment_policy']
         read_only_fields = ['id', 'organization_name', 'branch_name', 'sport_name']
     
     def validate_name(self, value):

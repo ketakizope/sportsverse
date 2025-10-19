@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:sportsverse_app/api/api_client.dart';
 import 'package:sportsverse_app/models/user.dart';
+import 'package:sportsverse_app/models/financials.dart';
+import 'package:sportsverse_app/models/student.dart';
 
 class AuthApi {
   final ApiClient apiClient;
@@ -290,6 +292,53 @@ class AuthApi {
     } else {
       final errorData = json.decode(response.body);
       throw Exception(errorData['error'] ?? 'Failed to change password');
+    }
+  }
+
+  Future<StudentFinancials> getStudentFinancials(int studentId) async {
+    final response = await apiClient.get(
+      '/api/accounts/students/$studentId/financials/',
+      includeAuth: true,
+    );
+
+    if (response.statusCode == 200) {
+      return StudentFinancials.fromJson(json.decode(response.body));
+    } else {
+      final errorData = json.decode(response.body);
+      throw Exception(errorData['detail'] ?? 'Failed to load student financials');
+    }
+  }
+
+  Future<List<Student>> getStudents() async {
+    final response = await apiClient.get(
+      '/api/accounts/students/',
+      includeAuth: true,
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> studentsJson = json.decode(response.body);
+      return studentsJson.map((json) => Student.fromJson(json)).toList();
+    } else {
+      final errorData = json.decode(response.body);
+      throw Exception(errorData['detail'] ?? 'Failed to load students');
+    }
+  }
+
+  Future<Map<String, dynamic>> getBatchFinancials({
+    required int branchId,
+    required int sportId,
+    required int batchId,
+  }) async {
+    final response = await apiClient.get(
+      '/api/payments/batch-financials/?branch=$branchId&sport=$sportId&batch=$batchId',
+      includeAuth: true,
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as Map<String, dynamic>;
+    } else {
+      final errorData = json.decode(response.body);
+      throw Exception(errorData['detail'] ?? 'Failed to load batch financials');
     }
   }
 }

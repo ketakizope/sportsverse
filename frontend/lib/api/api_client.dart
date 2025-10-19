@@ -8,7 +8,7 @@ class ApiClient {
   // For Android emulator, use 10.0.2.2
   // For iOS simulator, use 127.0.0.1 or localhost
   // For physical device, use your machine's IP address
-  static const String baseUrl = 'http://192.168.0.112:2000';
+  static const String baseUrl = 'http://localhost:8000';
   //static const String baseUrl = 'http://192.168.29.245:8000';
 
   String? _token;
@@ -83,6 +83,19 @@ class ApiClient {
   Future<http.Response> delete(String path, {bool includeAuth = true}) async {
     final url = Uri.parse('$baseUrl$path');
     return http.delete(url, headers: _getHeaders(includeAuth: includeAuth));
+  }
+
+  Future<http.Response> patch(
+    String path,
+    Map<String, dynamic> body, {
+    bool includeAuth = true,
+  }) async {
+    final url = Uri.parse('$baseUrl$path');
+    return http.patch(
+      url,
+      headers: _getHeaders(includeAuth: includeAuth),
+      body: json.encode(body),
+    );
   }
 
   Future<http.StreamedResponse> postMultipart(
