@@ -11,6 +11,8 @@ urlpatterns = [
     path('api/communications/', include('communications.urls')),
     path('api/payments/', include('payments.urls')),
     path('api/content/', include('content.urls')),
+    # Student-specific endpoints
+    path('api/student/', include('accounts.urls')),
 ]
 
 # Serve media files in development. In production, a web server (Nginx/Apache) handles this.

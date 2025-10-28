@@ -58,6 +58,8 @@ class StudentProfile(models.Model):
     parent_name = models.CharField(max_length=200, blank=True)
     parent_phone_number = models.CharField(max_length=20, blank=True)
     parent_email = models.EmailField(blank=True)
+    profile_photo = models.ImageField(upload_to='student_profiles/', blank=True, null=True)
+    face_encoding = models.TextField(blank=True, null=True)  # Store face encoding as JSON string
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} (Student at {self.organization.academy_name})"

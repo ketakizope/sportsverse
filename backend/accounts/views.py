@@ -123,10 +123,11 @@ class LoginView(APIView):
                     }
             elif user.user_type == 'STUDENT':
                 if hasattr(user, 'student_profile'):
+                    student = user.student_profile
                     profile_data = {
-                        'organization_id': user.student_profile.organization.id,
-                        'organization_name': user.student_profile.organization.academy_name,
-                        'student_id': user.student_profile.id
+                        'organization_id': student.organization.id,
+                        'organization_name': student.organization.academy_name,
+                        'student_id': student.id
                     }
             elif user.user_type == 'STAFF':
                 if hasattr(user, 'staff_profile'):
@@ -135,9 +136,32 @@ class LoginView(APIView):
                         'organization_name': user.staff_profile.organization.academy_name
                     }
             
+            # For students, return StudentProfile data instead of CustomUser data
+            if user.user_type == 'STUDENT' and hasattr(user, 'student_profile'):
+                student = user.student_profile
+                user_data = {
+                    'id': student.id,
+                    'username': user.username,  # From CustomUser (for authentication)
+                    'email': student.email,
+                    'first_name': student.first_name,
+                    'last_name': student.last_name,
+                    'phone_number': student.phone_number,
+                    'gender': student.gender,
+                    'date_of_birth': student.date_of_birth.isoformat() if student.date_of_birth else None,
+                    'user_type': user.user_type,  # From CustomUser (for authentication)
+                    'address': student.address,
+                    'parent_name': student.parent_name,
+                    'parent_phone_number': student.parent_phone_number,
+                    'parent_email': student.parent_email,
+                    'profile_photo': f"{request.build_absolute_uri('/')[:-1]}{student.profile_photo.url}" if student.profile_photo else None,
+                }
+            else:
+                # For other user types, use CustomUser data
+                user_data = UserSerializer(user).data
+            
             return Response({
                 "token": token.key,
-                "user": UserSerializer(user).data,
+                "user": user_data,
                 "profile_details": profile_data,
                 "must_change_password": user.must_change_password
             }, status=status.HTTP_200_OK)
@@ -428,3 +452,729 @@ class StudentListView(generics.ListAPIView):
             organization = self.request.user.academy_admin_profile.organization
             return StudentProfile.objects.filter(organization=organization).order_by('first_name', 'last_name')
         return StudentProfile.objects.none()
+
+
+# Student-specific views for student dashboard
+class StudentDashboardView(APIView):
+    """
+    API endpoint for student dashboard data.
+    Returns enrollment details, attendance summary, and payment information.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Ensure user is a student
+        if not hasattr(request.user, 'student_profile'):
+            return Response({'error': 'Access denied. Student profile required.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        student = request.user.student_profile
+        
+        # Get current and previous enrollments
+        current_enrollments = []
+        previous_enrollments = []
+        
+        enrollments = student.enrollments.all().order_by('-date_enrolled')
+        
+        for enrollment in enrollments:
+            # Get attendance records for this enrollment
+            attendance_records = enrollment.attendances.all().order_by('-date')
+            
+            enrollment_data = {
+                'id': enrollment.id,
+                'batch_name': enrollment.batch.name,
+                'sport_name': enrollment.batch.sport.name,
+                'enrollment_type': enrollment.enrollment_type,
+                'total_sessions': enrollment.total_sessions or 0,
+                'sessions_attended': enrollment.sessions_attended or 0,
+                'sessions_remaining': (enrollment.total_sessions or 0) - (enrollment.sessions_attended or 0),
+                'start_date': enrollment.start_date.isoformat() if enrollment.start_date else None,
+                'end_date': enrollment.end_date.isoformat() if enrollment.end_date else None,
+                'date_enrolled': enrollment.date_enrolled.isoformat() if enrollment.date_enrolled else None,
+                'is_active': enrollment.is_active,
+                'enrollment_started': enrollment.enrollment_started,
+                'payment_policy': enrollment.batch.payment_policy,
+                'fee_per_session': float(enrollment.batch.fee_per_session) if enrollment.batch.fee_per_session else None,
+                'enrollment_cycle': {
+                    'start': enrollment.start_date.isoformat() if enrollment.start_date else 'Not Started',
+                    'end': enrollment.end_date.isoformat() if enrollment.end_date else 'Ongoing',
+                    'status': 'Active' if enrollment.is_active else 'Inactive'
+                },
+                'session_records': [
+                    {
+                        'id': att.id,
+                        'date': att.date.isoformat(),
+                        'marked_by': str(att.marked_by) if att.marked_by else 'Unknown',
+                        'timestamp': att.timestamp.isoformat() if att.timestamp else None,
+                    }
+                    for att in attendance_records
+                ]
+            }
+            
+            if enrollment.is_active:
+                current_enrollments.append(enrollment_data)
+            else:
+                previous_enrollments.append(enrollment_data)
+        
+        # Calculate dashboard summary
+        total_current_sessions = sum(e['total_sessions'] for e in current_enrollments)
+        total_attended_sessions = sum(e['sessions_attended'] for e in current_enrollments)
+        total_remaining_sessions = sum(e['sessions_remaining'] for e in current_enrollments)
+        
+        # Create enrollment cycle string
+        enrollment_cycle = 'N/A'
+        if current_enrollments:
+            first_enrollment = current_enrollments[0]
+            start_date = first_enrollment.get('start_date', 'Not Started')
+            end_date = first_enrollment.get('end_date', 'Ongoing')
+            enrollment_cycle = f"{start_date} to {end_date}"
+        
+        # Create current enrollment string
+        current_enrollment = 'No Active Enrollment'
+        if current_enrollments:
+            first_enrollment = current_enrollments[0]
+            current_enrollment = f"{first_enrollment['batch_name']} ({first_enrollment['sport_name']})"
+        
+        dashboard_data = {
+            'current_enrollment': current_enrollment,
+            'sessions_completed': total_attended_sessions,
+            'sessions_remaining': total_remaining_sessions,
+            'enrollment_cycle': enrollment_cycle,
+            'current_enrollments': current_enrollments,
+            'previous_enrollments': previous_enrollments,
+            'recent_attendance': [],  # We'll populate this separately if needed
+            'summary': {
+                'total_current_enrollments': len(current_enrollments),
+                'total_sessions': total_current_sessions,
+                'sessions_attended': total_attended_sessions,
+                'sessions_remaining': total_remaining_sessions,
+                'completion_percentage': (total_attended_sessions / total_current_sessions * 100) if total_current_sessions > 0 else 0,
+            }
+        }
+        
+        return Response(dashboard_data, status=status.HTTP_200_OK)
+
+
+class StudentAttendanceView(APIView):
+    """
+    API endpoint for student attendance records.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Ensure user is a student
+        if not hasattr(request.user, 'student_profile'):
+            return Response({'error': 'Access denied. Student profile required.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        student = request.user.student_profile
+        
+        # Get attendance records as a flat list
+        attendance_records = []
+        
+        for enrollment in student.enrollments.all():
+            attendances = enrollment.attendances.all().order_by('-date')
+            for att in attendances:
+                attendance_records.append({
+                    'id': att.id,
+                    'enrollment': enrollment.id,
+                    'batch': enrollment.batch.id,
+                    'student': student.id,
+                    'organization': student.organization.id,
+                    'date': att.date.isoformat(),
+                    'is_present': True,  # All attendance records are present by default
+                    'timestamp': att.timestamp.isoformat() if att.timestamp else None,
+                    'marked_by': str(att.marked_by) if att.marked_by else 'Unknown',
+                })
+        
+        return Response(attendance_records, status=status.HTTP_200_OK)
+
+
+class StudentPaymentsView(APIView):
+    """
+    API endpoint for student payment information.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Ensure user is a student
+        if not hasattr(request.user, 'student_profile'):
+            return Response({'error': 'Access denied. Student profile required.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        student = request.user.student_profile
+        
+        # Get payment transactions
+        from payments.models import FeeTransaction
+        transactions = FeeTransaction.objects.filter(student=student).order_by('-transaction_date')
+        
+        payment_data = {
+            'transactions': [
+                {
+                    'id': txn.id,
+                    'amount': float(txn.amount),
+                    'is_paid': txn.is_paid,
+                    'due_date': txn.due_date,
+                    'transaction_date': txn.transaction_date,
+                    'payment_method': txn.payment_method,
+                    'receipt_number': txn.receipt_number,
+                    'enrollment_id': txn.enrollment.id if txn.enrollment else None,
+                    'batch_name': txn.enrollment.batch.name if txn.enrollment else 'N/A',
+                }
+                for txn in transactions
+            ],
+            'summary': {
+                'total_paid': float(transactions.filter(is_paid=True).aggregate(total=Sum('amount'))['total'] or 0),
+                'total_due': float(transactions.filter(is_paid=False).aggregate(total=Sum('amount'))['total'] or 0),
+                'total_transactions': transactions.count(),
+            }
+        }
+        
+        return Response(payment_data, status=status.HTTP_200_OK)
+
+
+class StudentPaymentSummaryView(APIView):
+    """
+    API endpoint for student payment summary.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Ensure user is a student
+        if not hasattr(request.user, 'student_profile'):
+            return Response({'error': 'Access denied. Student profile required.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        student = request.user.student_profile
+        
+        # Get payment summary
+        from payments.models import FeeTransaction
+        from django.db.models import Sum
+        
+        transactions = FeeTransaction.objects.filter(student=student)
+        
+        summary = {
+            'total_paid': float(transactions.filter(is_paid=True).aggregate(total=Sum('amount'))['total'] or 0),
+            'total_due': float(transactions.filter(is_paid=False).aggregate(total=Sum('amount'))['total'] or 0),
+            'total_transactions': transactions.count(),
+            'paid_transactions': transactions.filter(is_paid=True).count(),
+            'pending_transactions': transactions.filter(is_paid=False).count(),
+        }
+        
+        return Response(summary, status=status.HTTP_200_OK)
+
+
+class StudentProfileUpdateView(APIView):
+    """
+    API endpoint for updating student profile information.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Ensure user is a student
+        if not hasattr(request.user, 'student_profile'):
+            return Response({'error': 'Access denied. Student profile required.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        student = request.user.student_profile
+        
+        profile_data = {
+            'id': student.id,
+            'username': request.user.username,  # From CustomUser (for authentication)
+            'first_name': student.first_name,
+            'last_name': student.last_name,
+            'email': student.email,
+            'phone_number': student.phone_number,
+            'date_of_birth': student.date_of_birth.isoformat() if student.date_of_birth else None,
+            'gender': student.gender,
+            'user_type': request.user.user_type,  # From CustomUser (for authentication)
+            'address': student.address,
+            'parent_name': student.parent_name,
+            'parent_phone_number': student.parent_phone_number,
+            'parent_email': student.parent_email,
+            'profile_photo': f"{request.build_absolute_uri('/')[:-1]}{student.profile_photo.url}" if student.profile_photo else None,
+            'organization': {
+                'id': student.organization.id,
+                'academy_name': student.organization.academy_name,
+            } if student.organization else None,
+        }
+        
+        return Response(profile_data, status=status.HTTP_200_OK)
+
+    def put(self, request):
+        # Ensure user is a student
+        if not hasattr(request.user, 'student_profile'):
+            return Response({'error': 'Access denied. Student profile required.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        student = request.user.student_profile
+        
+        print(f"🔧 Backend: Updating profile for student {student.id}")
+        print(f"🔧 Backend: Received data: {request.data}")
+        print(f"🔧 Backend: Current student data before update:")
+        print(f"🔧 Backend: - first_name: {student.first_name}")
+        print(f"🔧 Backend: - last_name: {student.last_name}")
+        print(f"🔧 Backend: - email: {request.user.email}")
+        
+        try:
+            # Update only StudentProfile fields (single source of truth)
+            if 'first_name' in request.data:
+                print(f"🔧 Backend: Updating first_name from {student.first_name} to {request.data['first_name']}")
+                student.first_name = request.data['first_name']
+            if 'last_name' in request.data:
+                print(f"🔧 Backend: Updating last_name from {student.last_name} to {request.data['last_name']}")
+                student.last_name = request.data['last_name']
+            if 'email' in request.data:
+                print(f"🔧 Backend: Updating email from {student.email} to {request.data['email']}")
+                student.email = request.data['email']
+            if 'phone_number' in request.data:
+                print(f"🔧 Backend: Updating phone_number from {student.phone_number} to {request.data['phone_number']}")
+                student.phone_number = request.data['phone_number']
+            if 'date_of_birth' in request.data:
+                from datetime import datetime
+                print(f"🔧 Backend: Updating date_of_birth from {student.date_of_birth} to {request.data['date_of_birth']}")
+                student.date_of_birth = datetime.strptime(request.data['date_of_birth'], '%Y-%m-%d').date()
+            if 'address' in request.data:
+                print(f"🔧 Backend: Updating address from {student.address} to {request.data['address']}")
+                student.address = request.data['address']
+            if 'gender' in request.data:
+                print(f"🔧 Backend: Updating gender from {student.gender} to {request.data['gender']}")
+                student.gender = request.data['gender']
+            if 'parent_name' in request.data:
+                print(f"🔧 Backend: Updating parent_name from {student.parent_name} to {request.data['parent_name']}")
+                student.parent_name = request.data['parent_name']
+            if 'parent_phone_number' in request.data:
+                print(f"🔧 Backend: Updating parent_phone_number from {student.parent_phone_number} to {request.data['parent_phone_number']}")
+                student.parent_phone_number = request.data['parent_phone_number']
+            if 'parent_email' in request.data:
+                print(f"🔧 Backend: Updating parent_email from {student.parent_email} to {request.data['parent_email']}")
+                student.parent_email = request.data['parent_email']
+            
+            print(f"🔧 Backend: Saving StudentProfile...")
+            student.save()
+            print(f"🔧 Backend: StudentProfile saved successfully")
+            
+            # Verify the update
+            student.refresh_from_db()
+            print(f"🔧 Backend: After save verification:")
+            print(f"🔧 Backend: StudentProfile - first_name: {student.first_name}")
+            print(f"🔧 Backend: StudentProfile - last_name: {student.last_name}")
+            print(f"🔧 Backend: StudentProfile - email: {student.email}")
+            
+            # Return updated profile data (using only StudentProfile data)
+            profile_data = {
+                'id': student.id,
+                'username': request.user.username,  # From CustomUser (for authentication)
+                'first_name': student.first_name,
+                'last_name': student.last_name,
+                'email': student.email,
+                'phone_number': student.phone_number,
+                'date_of_birth': student.date_of_birth.isoformat() if student.date_of_birth else None,
+                'gender': student.gender,
+                'user_type': request.user.user_type,  # From CustomUser (for authentication)
+                'address': student.address,
+                'parent_name': student.parent_name,
+                'parent_phone_number': student.parent_phone_number,
+                'parent_email': student.parent_email,
+                'profile_photo': f"{request.build_absolute_uri('/')[:-1]}{student.profile_photo.url}" if student.profile_photo else None,
+                'organization': {
+                    'id': student.organization.id,
+                    'academy_name': student.organization.academy_name,
+                } if student.organization else None,
+            }
+            
+            print(f"🔧 Backend: Returning profile data: {profile_data}")
+            return Response(profile_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"🔧 Backend: Error updating profile: {str(e)}")
+            return Response({'error': f'Error updating profile: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class StudentProfileDebugView(APIView):
+    """
+    Debug endpoint to check current student profile data in database
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Ensure user is a student
+        if not hasattr(request.user, 'student_profile'):
+            return Response({'error': 'Access denied. Student profile required.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        student = request.user.student_profile
+        
+        # Get fresh data from database
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT first_name, last_name, email, phone_number, address, gender, parent_name, parent_phone_number, parent_email FROM accounts_studentprofile WHERE id = %s", [student.id])
+            db_data = cursor.fetchone()
+        
+        debug_data = {
+            'student_id': student.id,
+            'django_orm_data': {
+                'first_name': student.first_name,
+                'last_name': student.last_name,
+                'email': request.user.email,
+                'phone_number': student.phone_number,
+                'address': student.address,
+                'gender': student.gender,
+                'parent_name': student.parent_name,
+                'parent_phone_number': student.parent_phone_number,
+                'parent_email': student.parent_email,
+            },
+            'raw_db_data': {
+                'first_name': db_data[0] if db_data else None,
+                'last_name': db_data[1] if db_data else None,
+                'email': db_data[2] if db_data else None,
+                'phone_number': db_data[3] if db_data else None,
+                'address': db_data[4] if db_data else None,
+                'gender': db_data[5] if db_data else None,
+                'parent_name': db_data[6] if db_data else None,
+                'parent_phone_number': db_data[7] if db_data else None,
+                'parent_email': db_data[8] if db_data else None,
+            }
+        }
+        
+        return Response(debug_data, status=status.HTTP_200_OK)
+
+
+class StudentProfilePhotoUploadView(APIView):
+    """
+    API endpoint for uploading student profile photo.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Ensure user is a student
+        if not hasattr(request.user, 'student_profile'):
+            return Response({'error': 'Access denied. Student profile required.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        student = request.user.student_profile
+        
+        print(f"📸 Backend: Photo upload request for student {student.id}")
+        print(f"📸 Backend: Request FILES: {request.FILES}")
+        print(f"📸 Backend: Request data: {request.data}")
+        
+        try:
+            if 'profile_photo' not in request.FILES:
+                print("📸 Backend: No profile_photo in request.FILES")
+                return Response({'error': 'No profile photo provided'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            profile_photo = request.FILES['profile_photo']
+            print(f"📸 Backend: Received file: {profile_photo.name}")
+            print(f"📸 Backend: File size: {profile_photo.size} bytes")
+            print(f"📸 Backend: File content type: {profile_photo.content_type}")
+            
+            # Validate file type
+            allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'application/octet-stream']
+            file_extension = profile_photo.name.lower().split('.')[-1] if '.' in profile_photo.name else ''
+            allowed_extensions = ['jpg', 'jpeg', 'png', 'gif']
+            
+            print(f"📸 Backend: File extension: {file_extension}")
+            
+            # Check both content type and file extension
+            if (profile_photo.content_type not in allowed_types and 
+                file_extension not in allowed_extensions):
+                print(f"📸 Backend: Invalid file type: {profile_photo.content_type}, extension: {file_extension}")
+                return Response({'error': 'Invalid file type. Only JPEG, PNG, and GIF are allowed.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate file size (max 5MB)
+            if profile_photo.size > 5 * 1024 * 1024:
+                print(f"📸 Backend: File too large: {profile_photo.size} bytes")
+                return Response({'error': 'File too large. Maximum size is 5MB.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            print(f"📸 Backend: Current profile_photo before save: {student.profile_photo}")
+            
+            # Save the photo
+            print(f"📸 Backend: Setting profile_photo to: {profile_photo}")
+            student.profile_photo = profile_photo
+            print(f"📸 Backend: About to save student profile...")
+            student.save()
+            
+            print(f"📸 Backend: Profile saved successfully")
+            
+            # Refresh from database to get the latest data
+            student.refresh_from_db()
+            print(f"📸 Backend: New profile_photo after save: {student.profile_photo}")
+            print(f"📸 Backend: Profile photo URL: {student.profile_photo.url if student.profile_photo else 'None'}")
+            
+            # Check if file actually exists
+            if student.profile_photo:
+                import os
+                file_path = student.profile_photo.path
+                print(f"📸 Backend: File path: {file_path}")
+                print(f"📸 Backend: File exists: {os.path.exists(file_path)}")
+                if os.path.exists(file_path):
+                    print(f"📸 Backend: File size on disk: {os.path.getsize(file_path)} bytes")
+                else:
+                    print(f"📸 Backend: ERROR - File does not exist on disk!")
+            else:
+                print(f"📸 Backend: ERROR - profile_photo is None after save!")
+            
+            # Get the full URL for the profile photo
+            photo_url = None
+            if student.profile_photo:
+                # Build the full URL
+                photo_url = f"{request.build_absolute_uri('/')[:-1]}{student.profile_photo.url}"
+                print(f"📸 Backend: Full photo URL: {photo_url}")
+            
+            return Response({
+                'profile_photo': photo_url,
+                'message': 'Profile photo uploaded successfully'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"📸 Backend: Error uploading photo: {str(e)}")
+            import traceback
+            print(f"📸 Backend: Traceback: {traceback.format_exc()}")
+            return Response({'error': f'Error uploading photo: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class StudentFaceEncodingView(APIView):
+    """
+    API endpoint for students to generate and store their face encoding.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Ensure user is a student
+        if not hasattr(request.user, 'student_profile'):
+            return Response({'error': 'Access denied. Student profile required.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        student = request.user.student_profile
+        
+        try:
+            if 'face_image' not in request.FILES:
+                return Response({'error': 'No face image provided'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            face_image = request.FILES['face_image']
+            
+            print(f"🔍 Backend: Generating face encoding for student {student.first_name} {student.last_name}")
+            
+            # Extract face encoding
+            from .facial_recognition import extract_embedding_from_bytes
+            face_encoding = extract_embedding_from_bytes(face_image.read())
+            
+            if face_encoding is None:
+                return Response({'error': 'No face detected in image. Please ensure your face is clearly visible.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Store encoding as JSON string
+            import json
+            student.face_encoding = json.dumps(face_encoding.tolist())
+            student.save()
+            
+            print(f"🔍 Backend: Face encoding generated and stored for student {student.id}")
+            
+            return Response({
+                'message': 'Face encoding generated successfully',
+                'encoding_length': len(face_encoding),
+                'student_id': student.id,
+                'student_name': f"{student.first_name} {student.last_name}"
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print(f"🔍 Backend: Face encoding error: {str(e)}")
+            import traceback
+            print(f"🔍 Backend: Traceback: {traceback.format_exc()}")
+            return Response({'error': f'Face encoding error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TrainFaceRecognitionModelView(APIView):
+    """
+    API endpoint for academy admins to train the face recognition model.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Ensure user is an academy admin
+        if request.user.user_type != 'ACADEMY_ADMIN':
+            return Response({'error': 'Access denied. Academy admin required.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        admin_profile = request.user.academy_admin_profile
+        organization = admin_profile.organization
+        
+        try:
+            print(f"🧠 Backend: Training face recognition model for organization {organization.id}")
+            
+            from .facial_recognition import train_model_for_organization
+            success = train_model_for_organization(organization)
+            
+            if success:
+                return Response({
+                    'message': 'Face recognition model trained successfully',
+                    'organization_id': organization.id,
+                    'organization_name': organization.academy_name
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': 'Failed to train model. Ensure students have face encodings.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            print(f"🧠 Backend: Model training error: {str(e)}")
+            import traceback
+            print(f"🧠 Backend: Traceback: {traceback.format_exc()}")
+            return Response({'error': f'Model training error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class FaceRecognitionAttendanceView(APIView):
+    """
+    API endpoint for academy admins to mark attendance using face recognition.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Ensure user is an academy admin
+        if request.user.user_type != 'ACADEMY_ADMIN':
+            return Response({'error': 'Access denied. Academy admin required.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        admin_profile = request.user.academy_admin_profile
+        organization = admin_profile.organization
+        
+        try:
+            if 'captured_image' not in request.FILES:
+                return Response({'error': 'No captured image provided'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            captured_image = request.FILES['captured_image']
+            date = request.data.get('date')  # Optional, defaults to today
+            
+            if not date:
+                from datetime import date
+                date = date.today().isoformat()
+            
+            print(f"📸 Backend: Face recognition attendance for organization {organization.id} on {date}")
+            
+            # Recognize student from image
+            from .facial_recognition import recognize_student_from_image, train_model_for_organization
+            student, confidence = recognize_student_from_image(captured_image.read(), organization)
+            
+            if student is None:
+                # If no student recognized, try auto-training and retry
+                print(f"📸 Backend: No student recognized. Attempting auto-training...")
+                
+                try:
+                    # Auto-train the model
+                    train_result = train_model_for_organization(organization)
+                    print(f"📸 Backend: Auto-training result: {train_result}")
+                    
+                    # Try recognition again after training
+                    student, confidence = recognize_student_from_image(captured_image.read(), organization)
+                    
+                    if student is None:
+                        return Response({
+                            'recognized': False,
+                            'confidence': 0.0,
+                            'message': 'No student recognized even after auto-training. Please ensure the student has registered their face using the "Face Attendance" option in the student app, then try again.'
+                        }, status=status.HTTP_200_OK)
+                    else:
+                        print(f"📸 Backend: Student recognized after auto-training: {student.first_name} {student.last_name}")
+                
+                except Exception as train_error:
+                    print(f"📸 Backend: Auto-training failed: {str(train_error)}")
+                    return Response({
+                        'recognized': False,
+                        'confidence': 0.0,
+                        'message': 'No student recognized. Please ensure face is clearly visible and student has registered their face.'
+                    }, status=status.HTTP_200_OK)
+            
+            # Mark attendance for the recognized student
+            attendance_result = self._mark_attendance_for_student(student, date, request.user)
+            
+            if attendance_result:
+                return Response({
+                    'recognized': True,
+                    'student': {
+                        'id': student.id,
+                        'first_name': student.first_name,
+                        'last_name': student.last_name,
+                        'email': student.email,
+                    },
+                    'confidence': confidence,
+                    'attendance': attendance_result,
+                    'message': f'✅ Attendance automatically marked for {student.first_name} {student.last_name}'
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'recognized': True,
+                    'student': {
+                        'id': student.id,
+                        'first_name': student.first_name,
+                        'last_name': student.last_name,
+                        'email': student.email,
+                    },
+                    'confidence': confidence,
+                    'attendance': None,
+                    'message': f'Student {student.first_name} {student.last_name} recognized but has no active enrollments. Please enroll the student in a batch first.'
+                }, status=status.HTTP_200_OK)
+                
+        except Exception as e:
+            print(f"📸 Backend: Face recognition attendance error: {str(e)}")
+            import traceback
+            print(f"📸 Backend: Traceback: {traceback.format_exc()}")
+            return Response({'error': f'Face recognition attendance error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    def _mark_attendance_for_student(self, student, date, marked_by):
+        """
+        Mark attendance for the recognized student using the existing attendance system.
+        """
+        try:
+            from organizations.models import Attendance, Enrollment
+            from datetime import datetime
+            
+            # Get active enrollments for this student
+            enrollments = Enrollment.objects.filter(
+                student=student,
+                organization=student.organization,
+                is_active=True
+            )
+            
+            if not enrollments.exists():
+                print(f"📸 Backend: No active enrollments found for student {student.id}")
+                # Check if student has any enrollments at all
+                all_enrollments = Enrollment.objects.filter(
+                    student=student,
+                    organization=student.organization
+                )
+                if all_enrollments.exists():
+                    print(f"📸 Backend: Student {student.id} has {all_enrollments.count()} enrollments but none are active")
+                else:
+                    print(f"📸 Backend: Student {student.id} has no enrollments at all")
+                return None
+            
+            attendance_results = []
+            
+            for enrollment in enrollments:
+                # Use the existing attendance system - create attendance record
+                # The presence is implied by the existence of the record
+                attendance, created = Attendance.objects.get_or_create(
+                    enrollment=enrollment,
+                    date=date,
+                    defaults={
+                        'batch': enrollment.batch,
+                        'student': student,
+                        'organization': student.organization,
+                        'marked_by': marked_by,
+                        'is_session_deducted': False  # Will be set to True by the save() method
+                    }
+                )
+                
+                if not created:
+                    # Update existing attendance - just update who marked it
+                    attendance.marked_by = marked_by
+                    attendance.save()
+                
+                # The save() method in Attendance model will handle:
+                # - Session deduction for SESSION_BASED enrollments
+                # - Fee transaction creation for POST_PAID batches
+                # - Enrollment completion checking
+                
+                attendance_results.append({
+                    'enrollment_id': enrollment.id,
+                    'batch_name': enrollment.batch.name if enrollment.batch else 'N/A',
+                    'attendance_id': attendance.id,
+                    'is_present': True,  # Always true since we're creating the record
+                    'created': created,
+                    'sessions_attended': enrollment.sessions_attended,
+                    'total_sessions': enrollment.total_sessions
+                })
+            
+            return attendance_results
+            
+        except Exception as e:
+            print(f"📸 Backend: Error marking attendance: {str(e)}")
+            import traceback
+            print(f"📸 Backend: Traceback: {traceback.format_exc()}")
+            return None

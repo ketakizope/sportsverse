@@ -159,4 +159,9 @@ class AuthProvider with ChangeNotifier {
     authApi.logout();
     notifyListeners();
   }
+
+  void updateUser(User updatedUser) {
+    _currentUser = updatedUser;
+    notifyListeners();
+  }
 }

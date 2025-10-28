@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sportsverse_app/api/api_client.dart';
 import 'package:sportsverse_app/providers/auth_provider.dart';
+import 'package:sportsverse_app/providers/student_provider.dart';
 import 'package:sportsverse_app/screens/academy_admin/coach_dashboard_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/student_dashboard_screen.dart';
+import 'package:sportsverse_app/screens/student/student_home_screen.dart';
 import 'package:sportsverse_app/screens/auth/login_screen.dart';
 import 'package:sportsverse_app/screens/auth/register_academy_screen.dart';
 import 'package:sportsverse_app/screens/auth/forgot_password_screen.dart';
@@ -17,13 +19,17 @@ import 'package:sportsverse_app/screens/academy_admin/attendance_branch_select_s
 import 'package:sportsverse_app/screens/academy_admin/take_attendance_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/view_attendance_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/attendance_screen.dart';
+import 'package:sportsverse_app/screens/student/student_profile_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await apiClient.init(); // Initialize API client to load token
   runApp(
     MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => AuthProvider())],
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => StudentProvider()),
+      ],
       child: const SportsVerseApp(),
     ),
   );
@@ -60,39 +66,58 @@ class _SportsVerseAppState extends State<SportsVerseApp> {
       initialRoute: '/',
       routes: {
         '/': (context) {
-          final authProvider = Provider.of<AuthProvider>(context);
-          if (authProvider.isLoading) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          } else if (authProvider.currentUser != null) {
-            // Check if user must change password first
-            if (authProvider.mustChangePassword) {
-              return const ChangePasswordScreen();
-            }
-            
-            // Route based on user type after login
-            switch (authProvider.currentUser!.userType) {
-              case 'PLATFORM_ADMIN':
-                return const Text(
-                  'Platform Admin Dashboard - To be implemented',
-                ); // Placeholder
-              case 'ACADEMY_ADMIN':
-                return const AdminDashboardScreen();
-              case 'COACH':
-                return const CoachDashboardScreen();
-              case 'STUDENT':
-                return const StudentDashboardScreen();
-              case 'STAFF':
-                return const Text(
-                  'Staff Dashboard - To be implemented',
-                ); // Placeholder
-              default:
+          return Consumer<AuthProvider>(
+            builder: (context, authProvider, child) {
+              print('🏠 Main route builder called');
+              print('🏠 Current user: ${authProvider.currentUser?.username}');
+              print('🏠 User type: ${authProvider.currentUser?.userType}');
+              print('🏠 Is loading: ${authProvider.isLoading}');
+              
+              if (authProvider.isLoading) {
+                print('🏠 Showing loading screen');
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              } else if (authProvider.currentUser != null) {
+                print('🏠 User is logged in, checking password change requirement');
+                // Check if user must change password first
+                if (authProvider.mustChangePassword) {
+                  print('🏠 User must change password');
+                  return const ChangePasswordScreen();
+                }
+                
+                print('🏠 Routing based on user type: ${authProvider.currentUser!.userType}');
+                // Route based on user type after login
+                switch (authProvider.currentUser!.userType) {
+                  case 'PLATFORM_ADMIN':
+                    print('🏠 Routing to Platform Admin Dashboard');
+                    return const Text(
+                      'Platform Admin Dashboard - To be implemented',
+                    ); // Placeholder
+                  case 'ACADEMY_ADMIN':
+                    print('🏠 Routing to Academy Admin Dashboard');
+                    return const AdminDashboardScreen();
+                  case 'COACH':
+                    print('🏠 Routing to Coach Dashboard');
+                    return const CoachDashboardScreen();
+                  case 'STUDENT':
+                    print('🏠 Routing to Student Home Screen');
+                    return const StudentHomeScreen();
+                  case 'STAFF':
+                    print('🏠 Routing to Staff Dashboard');
+                    return const Text(
+                      'Staff Dashboard - To be implemented',
+                    ); // Placeholder
+                  default:
+                    print('🏠 Unknown user type, showing login');
+                    return const LoginScreen();
+                }
+              } else {
+                print('🏠 No user logged in, showing login screen');
                 return const LoginScreen();
-            }
-          } else {
-            return const LoginScreen();
-          }
+              }
+            },
+          );
         },
         '/register-academy': (context) => const RegisterAcademyScreen(),
         '/register-user': (context) =>
@@ -102,6 +127,8 @@ class _SportsVerseAppState extends State<SportsVerseApp> {
         '/attendance/branches': (context) => const AttendanceBranchSelectScreen(),
         '/attendance/take': (context) => const TakeAttendanceScreen(),
         '/attendance/view': (context) => const ViewAttendanceScreen(),
+        '/profile': (context) => const StudentProfileScreen(),
+        '/login': (context) => const LoginScreen(),
         // Define other routes here
       },
       builder: (context, child) {

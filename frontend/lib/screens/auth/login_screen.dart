@@ -22,17 +22,31 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    print('🔐 Starting login process...');
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.login(
-      _usernameController.text,
-      _passwordController.text,
-    );
+    
+    try {
+      await authProvider.login(
+        _usernameController.text,
+        _passwordController.text,
+      );
 
-    if (authProvider.currentUser != null) {
-      // Navigate based on user type (handled in main.dart's route logic)
-      _showSnackBar('Login successful!', Colors.green);
-    } else {
-      _showSnackBar(authProvider.errorMessage ?? 'Login failed.', Colors.red);
+      print('🔐 Login completed. Current user: ${authProvider.currentUser?.username}');
+      print('🔐 User type: ${authProvider.currentUser?.userType}');
+      print('🔐 Is loading: ${authProvider.isLoading}');
+
+      if (authProvider.currentUser != null) {
+        _showSnackBar('Login successful!', Colors.green);
+        print('🔐 Navigating to home screen...');
+        // Force navigation by pushing to root and removing all previous routes
+        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+      } else {
+        print('🔐 Login failed: ${authProvider.errorMessage}');
+        _showSnackBar(authProvider.errorMessage ?? 'Login failed.', Colors.red);
+      }
+    } catch (e) {
+      print('🔐 Login error: $e');
+      _showSnackBar('Login error: $e', Colors.red);
     }
   }
 

@@ -10,6 +10,11 @@ class User {
   final String? gender;
   final String? dateOfBirth; // YYYY-MM-DD format
   final String userType;
+  final String? address;
+  final String? parentName;
+  final String? parentPhoneNumber;
+  final String? parentEmail;
+  final String? profilePhoto;
 
   User({
     required this.id,
@@ -21,19 +26,29 @@ class User {
     this.gender,
     this.dateOfBirth,
     required this.userType,
+    this.address,
+    this.parentName,
+    this.parentPhoneNumber,
+    this.parentEmail,
+    this.profilePhoto,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'],
-      username: json['username'],
+      id: json['id'] ?? 0,
+      username: json['username'] ?? '',
       email: json['email'] ?? '',
       firstName: json['first_name'] ?? '',
       lastName: json['last_name'] ?? '',
       phoneNumber: json['phone_number'],
       gender: json['gender'],
       dateOfBirth: json['date_of_birth'],
-      userType: json['user_type'],
+      userType: json['user_type'] ?? '',
+      address: json['address'],
+      parentName: json['parent_name'],
+      parentPhoneNumber: json['parent_phone_number'],
+      parentEmail: json['parent_email'],
+      profilePhoto: json['profile_photo'],
     );
   }
 }

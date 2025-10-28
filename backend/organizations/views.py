@@ -246,6 +246,46 @@ class StudentEnrollmentCreateView(generics.CreateAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class AttendanceRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    API endpoint to retrieve, update, or delete a specific attendance record.
+    """
+    serializer_class = AttendanceSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        if not hasattr(self.request.user, 'academy_admin_profile'):
+            return Attendance.objects.none()
+
+        return Attendance.objects.filter(
+            organization=self.request.user.academy_admin_profile.organization
+        ).select_related('student__user', 'batch', 'enrollment')
+
+    def perform_update(self, serializer):
+        # Only admins of the organization can update
+        if not hasattr(self.request.user, 'academy_admin_profile'):
+            raise PermissionError("Only Academy Admins can update attendance records.")
+
+        # Ensure attendance belongs to admin's organization
+        organization = self.request.user.academy_admin_profile.organization
+        if serializer.instance.organization != organization:
+            raise PermissionError('Cannot update attendance outside your organization')
+
+        serializer.save(marked_by=self.request.user)
+
+    def perform_destroy(self, instance):
+        # Only admins of the organization can delete
+        if not hasattr(self.request.user, 'academy_admin_profile'):
+            raise PermissionError("Only Academy Admins can delete attendance records.")
+
+        # Ensure attendance belongs to admin's organization
+        organization = self.request.user.academy_admin_profile.organization
+        if instance.organization != organization:
+            raise PermissionError('Cannot delete attendance outside your organization')
+
+        instance.delete()
+
+
 class AttendanceListView(generics.ListCreateAPIView):
     """
     API endpoint to list attendance records with optional filters.
@@ -298,8 +338,63 @@ class AttendanceListView(generics.ListCreateAPIView):
         if enrollment.organization != organization:
             raise PermissionError('Cannot mark attendance outside your organization')
 
-        serializer.save(
-            organization=organization,
-            batch=enrollment.batch,
-            student=enrollment.student
+        # Use get_or_create to handle duplicates gracefully
+        attendance_date = self.request.data.get('date')
+        if not attendance_date:
+            raise ValueError('date is required')
+
+        print(f"🔍 Backend: Creating attendance for enrollment {enrollment_id}, date {attendance_date}")
+
+        # Check if enrollment is session-based and has reached its limit
+        if enrollment.enrollment_type == 'SESSION_BASED' and enrollment.total_sessions:
+            if enrollment.sessions_attended >= enrollment.total_sessions:
+                # Enrollment is complete, check if we should create a new one
+                print(f"⚠️ Backend: Enrollment {enrollment_id} has reached its session limit ({enrollment.sessions_attended}/{enrollment.total_sessions})")
+                
+                # Option 1: Prevent over-marking (recommended for sports academies)
+                raise ValueError(f'Enrollment has reached its session limit ({enrollment.sessions_attended}/{enrollment.total_sessions}). Please create a new enrollment for this student.')
+                
+                # Option 2: Auto-create new enrollment (uncomment if you want this behavior)
+                # print(f"🔄 Backend: Auto-creating new enrollment for student {enrollment.student.id}")
+                # new_enrollment = Enrollment.objects.create(
+                #     student=enrollment.student,
+                #     batch=enrollment.batch,
+                #     organization=organization,
+                #     enrollment_type=enrollment.enrollment_type,
+                #     total_sessions=enrollment.total_sessions,
+                #     sessions_attended=0,
+                #     is_active=True,
+                # )
+                # print(f"✅ Backend: New enrollment created with ID {new_enrollment.id}")
+                # enrollment = new_enrollment
+
+        # Use get_or_create to handle duplicates gracefully
+        attendance, created = Attendance.objects.get_or_create(
+            enrollment=enrollment,
+            date=attendance_date,
+            defaults={
+                'organization': organization,
+                'batch': enrollment.batch,
+                'student': enrollment.student,
+                'marked_by': self.request.user,
+            }
         )
+        
+        # If attendance already existed, update the marked_by field
+        if not created:
+            print(f"🔄 Backend: Attendance already existed with ID {attendance.id}, updating marked_by")
+            attendance.marked_by = self.request.user
+            attendance.save()
+        else:
+            print(f"✅ Backend: New attendance record created with ID {attendance.id}")
+            
+            # Check if enrollment is now complete after this attendance
+            if enrollment.enrollment_type == 'SESSION_BASED' and enrollment.total_sessions:
+                if enrollment.sessions_attended >= enrollment.total_sessions:
+                    print(f"🎯 Backend: Enrollment {enrollment_id} is now complete ({enrollment.sessions_attended}/{enrollment.total_sessions})")
+                    # Mark enrollment as inactive when complete
+                    enrollment.is_active = False
+                    enrollment.save()
+                    print(f"✅ Backend: Enrollment {enrollment_id} marked as inactive")
+        
+        return attendance

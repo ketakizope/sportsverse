@@ -152,11 +152,12 @@ class Attendance(models.Model):
             self.enrollment.save()
             
         # Update sessions attended for session-based enrollment
-        if self.enrollment.enrollment_type == 'SESSION_BASED' and not self.is_session_deducted:
+        if is_new and self.enrollment.enrollment_type == 'SESSION_BASED' and not self.is_session_deducted:
             self.enrollment.sessions_attended += 1
             self.enrollment.save()
             self.is_session_deducted = True
-            super().save(*args, **kwargs)
+            # Update the field in the database
+            Attendance.objects.filter(pk=self.pk).update(is_session_deducted=True)
 
         # For POST_PAID batches, create a fee transaction for each attendance
         if is_new and self.batch.payment_policy == 'POST_PAID' and self.batch.fee_per_session is not None:

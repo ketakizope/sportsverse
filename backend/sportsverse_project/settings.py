@@ -85,7 +85,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql', # For MySQL
         'NAME': 'sportsverse_db',             # Your MySQL database name
         'USER': 'root',            # Your MySQL username
-        'PASSWORD': 'Avadhoot14k',    # Your MySQL password
+        'PASSWORD': 'Hak@786',    # Your MySQL password
         'HOST': 'localhost',                  # Or your database host (e.g., 'localhost')
         'PORT': '3306',                       # Default MySQL port
     }

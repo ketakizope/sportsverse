@@ -10,6 +10,7 @@ import 'package:sportsverse_app/screens/academy_admin/batch_management_screen.da
 import 'package:sportsverse_app/screens/academy_admin/coach_assignment_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/add_student_enrollment_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/student_management_screen.dart';
+import 'package:sportsverse_app/screens/academy_admin/admin_face_attendance_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -293,6 +294,20 @@ class AdminDashboardScreen extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const StudentManagementScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildActionButton(
+                    context,
+                    'Face Recognition Attendance',
+                    'Capture attendance using facial recognition',
+                    Icons.face_retouching_natural,
+                    const Color(0xFF667eea),
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AdminFaceAttendanceScreen()),
                       );
                     },
                   ),

@@ -8,7 +8,7 @@ class ApiClient {
   // For Android emulator, use 10.0.2.2
   // For iOS simulator, use 127.0.0.1 or localhost
   // For physical device, use your machine's IP address
-  static const String baseUrl = 'http://localhost:8000';
+  static const String baseUrl = 'http://192.168.1.133:2000';
   //static const String baseUrl = 'http://192.168.29.245:8000';
 
   String? _token;
@@ -114,6 +114,106 @@ class ApiClient {
       request.files.add(file);
     }
     return request.send();
+  }
+
+  Future<http.Response> uploadFile(String path, String filePath) async {
+    try {
+      print('📤 Uploading file: $filePath to $path');
+      final url = Uri.parse('$baseUrl$path');
+      var request = http.MultipartRequest('POST', url);
+      request.headers.addAll(_getHeaders(includeAuth: true, isMultiPart: true));
+      
+      print('📤 Headers: ${request.headers}');
+      
+      // Add the file
+      request.files.add(await http.MultipartFile.fromPath('profile_photo', filePath));
+      
+      print('📤 Files added: ${request.files.length}');
+      
+      // Send the request
+      final streamedResponse = await request.send();
+      
+      print('📤 Streamed response status: ${streamedResponse.statusCode}');
+      
+      // Convert StreamedResponse to Response
+      final response = await http.Response.fromStream(streamedResponse);
+      print('📤 Final response status: ${response.statusCode}');
+      print('📤 Final response body: ${response.body}');
+      
+      return response;
+    } catch (e) {
+      print('📤 Upload file error: $e');
+      throw Exception('Error uploading file: $e');
+    }
+  }
+
+  Future<http.Response> uploadFileWithData(String path, String filePath, String fileFieldName, Map<String, dynamic> formData) async {
+    try {
+      print('📤 Uploading file with data: $filePath to $path');
+      final url = Uri.parse('$baseUrl$path');
+      var request = http.MultipartRequest('POST', url);
+      request.headers.addAll(_getHeaders(includeAuth: true, isMultiPart: true));
+      
+      print('📤 Headers: ${request.headers}');
+      
+      // Add the file
+      request.files.add(await http.MultipartFile.fromPath(fileFieldName, filePath));
+      
+      // Add form data
+      formData.forEach((key, value) {
+        request.fields[key] = value.toString();
+      });
+      
+      print('📤 Files added: ${request.files.length}');
+      print('📤 Form data: $formData');
+      
+      // Send the request
+      final streamedResponse = await request.send();
+      
+      print('📤 Streamed response status: ${streamedResponse.statusCode}');
+      
+      // Convert StreamedResponse to Response
+      final response = await http.Response.fromStream(streamedResponse);
+      print('📤 Final response status: ${response.statusCode}');
+      print('📤 Final response body: ${response.body}');
+      
+      return response;
+    } catch (e) {
+      print('📤 Upload file with data error: $e');
+      throw Exception('Error uploading file with data: $e');
+    }
+  }
+
+  Future<http.Response> uploadFileWithFieldName(String path, String filePath, String fieldName) async {
+    try {
+      print('📤 Uploading file with custom field name: $filePath to $path');
+      final url = Uri.parse('$baseUrl$path');
+      var request = http.MultipartRequest('POST', url);
+      request.headers.addAll(_getHeaders(includeAuth: true, isMultiPart: true));
+      
+      print('📤 Headers: ${request.headers}');
+      
+      // Add the file with custom field name
+      request.files.add(await http.MultipartFile.fromPath(fieldName, filePath));
+      
+      print('📤 Files added: ${request.files.length}');
+      print('📤 Field name: $fieldName');
+      
+      // Send the request
+      final streamedResponse = await request.send();
+      
+      print('📤 Streamed response status: ${streamedResponse.statusCode}');
+      
+      // Convert StreamedResponse to Response
+      final response = await http.Response.fromStream(streamedResponse);
+      print('📤 Final response status: ${response.statusCode}');
+      print('📤 Final response body: ${response.body}');
+      
+      return response;
+    } catch (e) {
+      print('📤 Upload file with custom field name error: $e');
+      throw Exception('Error uploading file with custom field name: $e');
+    }
   }
 }
 

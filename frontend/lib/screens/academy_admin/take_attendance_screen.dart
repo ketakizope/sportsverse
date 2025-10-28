@@ -249,28 +249,62 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
   }
 
   // Method to save attendance to backend
+  // Business Logic:
+  // - Present students: Create attendance record (session is consumed)
+  // - Absent students: Do nothing (session remains available for future use)
+  // - This is different from school attendance where absence is recorded
   Future<void> _saveAttendance() async {
     if (_selectedDate == null) return;
     final String dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate!);
     int success = 0;
+    int skipped = 0;
+    
     for (final s in _students) {
       if (s.enrollmentId == 0) continue;
-      final payload = {
-        'enrollment': s.enrollmentId,
-        'date': dateStr,
-        'is_present': s.isPresent,
-      };
-      final resp = await apiClient.post('/api/organizations/attendance/', payload, includeAuth: true);
-      if (resp.statusCode == 201 || resp.statusCode == 200) {
-        success += 1;
+      
+      try {
+        if (s.isPresent) {
+          // For present students, create attendance record (session is used)
+          print('Creating attendance for present student: ${s.name} (enrollment: ${s.enrollmentId})');
+          final result = await _createAttendance(s.enrollmentId, dateStr);
+          if (result) {
+            success += 1;
+            print('✅ Successfully created attendance for ${s.name}');
+          } else {
+            skipped += 1;
+            print('❌ Failed to create attendance for ${s.name}');
+          }
+        } else {
+          // For absent students, do absolutely nothing - session remains available for future use
+          // This is the correct behavior for sports academies
+          // No API calls needed - just skip silently
+          print('⏭️ Skipping absent student: ${s.name} (no action needed)');
+        }
+      } catch (e) {
+        print('Error processing attendance for student ${s.name}: $e');
+        skipped += 1;
       }
     }
 
+    // Count present and absent students for better reporting
+    final presentCount = _students.where((s) => s.isPresent).length;
+    final absentCount = _students.where((s) => !s.isPresent).length;
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Attendance Saved'),
-        content: Text('Saved $success/${_students.length} records for $dateStr'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('✅ Present students: $success/$presentCount'),
+            Text('⏭️ Absent students: $absentCount (sessions preserved)'),
+            if (skipped > 0) Text('⚠️ Errors: $skipped'),
+            const SizedBox(height: 8),
+            Text('Date: $dateStr', style: const TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -280,6 +314,30 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
       ),
     );
   }
+
+  // Helper method to create attendance record
+  Future<bool> _createAttendance(int enrollmentId, String date) async {
+    try {
+      final payload = {
+        'enrollment': enrollmentId,
+        'date': date,
+      };
+      
+      print('📤 Sending POST request to /api/organizations/attendance/');
+      print('📤 Payload: $payload');
+      
+      final resp = await apiClient.post('/api/organizations/attendance/', payload, includeAuth: true);
+      
+      print('📥 Response status: ${resp.statusCode}');
+      print('📥 Response body: ${resp.body}');
+      
+      return resp.statusCode == 201 || resp.statusCode == 200;
+    } catch (e) {
+      print('❌ Error creating attendance: $e');
+      return false;
+    }
+  }
+
 
   // Method to show the date picker
   Future<void> _selectDate(BuildContext context) async {
@@ -539,7 +597,7 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             const Text(
-              'Select All',
+              'Mark All Present',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             Checkbox(
@@ -553,7 +611,7 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
         DataTable(
             columns: const [
               DataColumn(label: Text('Sr. No.')),
-              DataColumn(label: Text('Present')),
+              DataColumn(label: Text('Present\n(✓ = Session Used)')),
               DataColumn(label: Text('Student Name')),
             ],
             rows: _students.asMap().entries.map((entry) {

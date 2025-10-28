@@ -348,6 +348,7 @@ class AttendanceSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source='student.first_name', read_only=True)
     student_last_name = serializers.CharField(source='student.last_name', read_only=True)
     batch_name = serializers.CharField(source='batch.name', read_only=True)
+    marked_by_name = serializers.CharField(source='marked_by.get_full_name', read_only=True)
 
     is_present = serializers.SerializerMethodField()
 
@@ -355,11 +356,13 @@ class AttendanceSerializer(serializers.ModelSerializer):
         model = Attendance
         fields = [
             'id', 'date', 'is_present', 'enrollment', 'batch', 'student', 'organization',
-            'student_name', 'student_last_name', 'batch_name'
+            'student_name', 'student_last_name', 'batch_name', 'marked_by', 'marked_by_name',
+            'timestamp', 'is_session_deducted'
         ]
         read_only_fields = [
-            'id', 'organization', 'student', 'batch',
-            'student_name', 'student_last_name', 'batch_name'
+            'id', 'organization', 'student', 'batch', 'marked_by',
+            'student_name', 'student_last_name', 'batch_name', 'marked_by_name',
+            'timestamp', 'is_session_deducted'
         ]
 
     def get_is_present(self, obj):
