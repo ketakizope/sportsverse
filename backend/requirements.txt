@@ -22,5 +22,11 @@ django-extensions>=3.2.0  # Useful development extensions
 # Environment Variables (required)
 python-decouple>=3.8  # Reads secrets from .env file (see .env.example)
 
+# Background Tasks (zero infra — uses MySQL as broker)
+django-q2>=1.6.2     # Task queue; Q_CLUSTER with orm='default' uses MySQL
+
+# Rate Limiting
+django-ratelimit>=4.1.0  # Per-user/IP rate limits on API views
+
 # Development & Testing (optional)
 django-debug-toolbar>=4.0.0  # For debugging (development only)

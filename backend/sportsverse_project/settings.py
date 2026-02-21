@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'content',
     'academy_reports',
     'coaches',
+    'ratings',
+    'django_q',
 ]
 
 MIDDLEWARE = [
@@ -127,6 +129,20 @@ REST_FRAMEWORK = {
     ],
 }
 
+# ─── Django-Q (background task queue) ───────────────────────────────────
+Q_CLUSTER = {
+    'name': 'sportsverse',
+    'workers': 2,
+    'recycle': 500,
+    'timeout': 60,            # seconds before task is killed
+    'retry':   120,           # retry failed tasks after N seconds
+    'queue_limit': 50,
+    'bulk': 10,
+    'orm': 'default',         # use MySQL as broker — no Redis required
+    'sync': config('Q_SYNC', default=False, cast=bool),  # True in tests
+    'max_attempts': 3,
+}
+
 # ─── Logging ──────────────────────────────────────────────────────────────────
 LOGGING = {
     'version': 1,
@@ -171,6 +187,11 @@ LOGGING = {
             'propagate': False,
         },
         'payments': {
+            'handlers': ['console'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': False,
+        },
+        'ratings': {
             'handlers': ['console'],
             'level': 'DEBUG' if DEBUG else 'INFO',
             'propagate': False,

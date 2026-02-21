@@ -13,12 +13,14 @@ urlpatterns = [
     path('api/communications/', include('communications.urls')),
     path('api/payments/', include('payments.urls')),
     path('api/content/', include('content.urls')),
-path('api/coaches/', include('coaches.urls')),
+    path('api/coaches/', include('coaches.urls')),
     path('api/reports/', include('academy_reports.urls')),
+    path('api/ratings/', include('ratings.urls')),           # ← DUPR rating system
     # Student-specific endpoints
     path('api/student/', include('accounts.urls')),
     path('api/academy-contents/', include('academy_contents.urls')),
 ]
+
 
 # Serve media files in development. In production, a web server (Nginx/Apache) handles this.
 if settings.DEBUG:
