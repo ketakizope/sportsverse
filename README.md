@@ -100,22 +100,53 @@ cd ../frontend/sportsverse_app
 flutter pub get
 ```
 
-#### 2.2 Configure API Endpoint
-**For Android Emulator** (recommended):
-- The app is already configured to use `http://10.0.2.2:8000` 
-- **Do NOT change this** unless using Windows emulator or physical device
+#### 2.2 Configure API URL
 
-**For iOS Simulator or Physical Device**:
-Update `lib/api/api_client.dart`:
-```dart
-static const String baseUrl = 'http://127.0.0.1:8000'; // or your computer's IP
+The Flutter app uses a **compile-time variable** for the backend URL — no code edits needed.
+
+| Target | Command |
+|---|---|
+| Android Emulator (default) | `flutter run` |
+| Physical device / LAN server | `flutter run --dart-define=API_BASE_URL=http://192.168.1.33:8000` |
+| iOS Simulator | `flutter run --dart-define=API_BASE_URL=http://127.0.0.1:8000` |
+| Custom staging server | `flutter run --dart-define=API_BASE_URL=https://api.example.com` |
+
+> **Default fallback**: `http://10.0.2.2:8000` (Android emulator alias for localhost).
+
+The variable can also be set in VS Code's `launch.json`:
+```json
+{
+  "args": ["--dart-define=API_BASE_URL=http://192.168.1.33:8000"]
+}
 ```
 
 #### 2.3 Run the Flutter App
 ```bash
+# Android emulator (uses default 10.0.2.2:8000)
 flutter run
+
+# Physical device on same LAN
+flutter run --dart-define=API_BASE_URL=http://192.168.1.33:8000
 ```
-**Make sure your emulator/device is running before executing this command.**
+**Make sure your emulator/device is running and the Django server is started before executing this command.**
+
+#### 2.4 Token Validation on App Start
+
+On every cold start the app automatically:
+1. Loads any stored auth token from `SharedPreferences`.
+2. Calls `GET /api/accounts/me/` to validate it with the server.
+3. On **valid token** → restores the user session and navigates to the correct dashboard.
+4. On **401 / expired token** → clears the token and navigates to the Login screen.
+
+No manual logout is needed when a token expires.
+
+#### 2.5 Run Flutter Tests
+```bash
+cd frontend
+flutter test test/coach_dashboard_test.dart --verbose
+# Or all tests:
+flutter test
+```
 
 ---
 

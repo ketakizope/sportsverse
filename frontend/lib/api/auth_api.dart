@@ -346,6 +346,17 @@ class AuthApi {
       throw Exception(errorData['detail'] ?? 'Failed to load batch financials');
     }
   }
+  Future<Map<String, dynamic>?> getMe() async {
+    final response = await apiClient.get(
+      '/api/accounts/me/',
+      includeAuth: true,
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as Map<String, dynamic>;
+    }
+    if (response.statusCode == 401) return null; // token expired / invalid
+    throw Exception('Unexpected status ${response.statusCode} from /me/');
+  }
 }
 
 final authApi = AuthApi(apiClient); // Global instance

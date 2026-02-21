@@ -1,46 +1,53 @@
-// sportsverse/frontend/sportsverse_app/lib/api/api_client.dart
+// lib/api/api_client.dart
+//
+// Centralised HTTP client.
+// Compile-time base URL:
+//   flutter run --dart-define=API_BASE_URL=http://192.168.1.33:8000
+// Falls back to Android-emulator alias when not defined.
 
+import 'dart:async';
 import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiClient {
-  // For Android emulator, use 10.0.2.2
-  // For iOS simulator, use 127.0.0.1 or localhost
-  // For physical device, use your machine's IP address
-//static const String baseUrl = 'http://127.0.0.1:8000'; 
- //static const String baseUrl = 'http://192.168.29.245:8000';
-  //static const String baseUrl = 'http://192.168.29.245:8000';
-     static const String baseUrl = 'http://192.168.1.33:8000';
+  // Resolved at compile time via --dart-define; falls back to Android emulator alias.
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.0.2.2:8000',
+  );
 
-// 192.168.0.115-- madhura
+  static const Duration _kTimeout = Duration(seconds: 30);
+
   String? _token;
-  bool _isInitialized = false; // Added to track initialization
+  bool _isInitialized = false;
 
-  // Initialize token from SharedPreferences
+  // ── Initialisation ────────────────────────────────────────────────────────
+
   Future<void> init() async {
     if (_isInitialized) return;
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('auth_token');
     _isInitialized = true;
-    print("🔑 ApiClient Initialized. Token: ${_token != null ? 'Found' : 'Not Found'}");
+    debugPrint('🔑 ApiClient: token ${_token != null ? 'loaded' : 'not found'}');
   }
 
-  // New helper to ensure we don't send a request before the token is loaded
   Future<void> _ensureInitialized() async {
-    if (!_isInitialized) {
-      await init();
-    }
+    if (!_isInitialized) await init();
   }
+
+  // ── Token management ──────────────────────────────────────────────────────
 
   void setToken(String? token) {
     _token = token;
-    _saveToken(token);
+    _persistToken(token);
   }
 
   String? getToken() => _token;
 
-  Future<void> _saveToken(String? token) async {
+  Future<void> _persistToken(String? token) async {
     final prefs = await SharedPreferences.getInstance();
     if (token != null) {
       await prefs.setString('auth_token', token);
@@ -49,18 +56,35 @@ class ApiClient {
     }
   }
 
-  Map<String, String> _getHeaders({
-    bool includeAuth = true,
-    bool isMultiPart = false,
+  // ── Headers ───────────────────────────────────────────────────────────────
+
+  Map<String, String> _headers({
+    bool withAuth = true,
+    bool multipart = false,
   }) {
-    Map<String, String> headers = {'Content-Type': 'application/json'};
-    if (isMultiPart) {
-      headers.remove('Content-Type'); // Multipart handles its own content type
+    final h = <String, String>{};
+    if (!multipart) h['Content-Type'] = 'application/json';
+    if (withAuth && _token != null) h['Authorization'] = 'Token $_token';
+    return h;
+  }
+
+  // ── Error / timeout helpers ───────────────────────────────────────────────
+
+  /// Wraps a future in a human-readable timeout exception.
+  Future<T> _withTimeout<T>(Future<T> future) async {
+    try {
+      return await future.timeout(_kTimeout);
+    } on TimeoutException {
+      throw Exception('Request timed out. Please check your connection.');
     }
-    if (includeAuth && _token != null) {
-      headers['Authorization'] = 'Token $_token';
-    }
-    return headers;
+  }
+
+  // ── HTTP verbs ────────────────────────────────────────────────────────────
+
+  Future<http.Response> get(String path, {bool includeAuth = true}) async {
+    await _ensureInitialized();
+    final url = Uri.parse('$baseUrl$path');
+    return _withTimeout(http.get(url, headers: _headers(withAuth: includeAuth)));
   }
 
   Future<http.Response> post(
@@ -68,19 +92,13 @@ class ApiClient {
     Map<String, dynamic> body, {
     bool includeAuth = true,
   }) async {
-    await _ensureInitialized(); // Added check
+    await _ensureInitialized();
     final url = Uri.parse('$baseUrl$path');
-    return http.post(
+    return _withTimeout(http.post(
       url,
-      headers: _getHeaders(includeAuth: includeAuth),
+      headers: _headers(withAuth: includeAuth),
       body: json.encode(body),
-    );
-  }
-
-  Future<http.Response> get(String path, {bool includeAuth = true}) async {
-    await _ensureInitialized(); // Added check
-    final url = Uri.parse('$baseUrl$path');
-    return http.get(url, headers: _getHeaders(includeAuth: includeAuth));
+    ));
   }
 
   Future<http.Response> put(
@@ -88,19 +106,13 @@ class ApiClient {
     Map<String, dynamic> body, {
     bool includeAuth = true,
   }) async {
-    await _ensureInitialized(); // Added check
+    await _ensureInitialized();
     final url = Uri.parse('$baseUrl$path');
-    return http.put(
+    return _withTimeout(http.put(
       url,
-      headers: _getHeaders(includeAuth: includeAuth),
+      headers: _headers(withAuth: includeAuth),
       body: json.encode(body),
-    );
-  }
-
-  Future<http.Response> delete(String path, {bool includeAuth = true}) async {
-    await _ensureInitialized(); // Added check
-    final url = Uri.parse('$baseUrl$path');
-    return http.delete(url, headers: _getHeaders(includeAuth: includeAuth));
+    ));
   }
 
   Future<http.Response> patch(
@@ -108,14 +120,22 @@ class ApiClient {
     Map<String, dynamic> body, {
     bool includeAuth = true,
   }) async {
-    await _ensureInitialized(); // Added check
+    await _ensureInitialized();
     final url = Uri.parse('$baseUrl$path');
-    return http.patch(
+    return _withTimeout(http.patch(
       url,
-      headers: _getHeaders(includeAuth: includeAuth),
+      headers: _headers(withAuth: includeAuth),
       body: json.encode(body),
-    );
+    ));
   }
+
+  Future<http.Response> delete(String path, {bool includeAuth = true}) async {
+    await _ensureInitialized();
+    final url = Uri.parse('$baseUrl$path');
+    return _withTimeout(http.delete(url, headers: _headers(withAuth: includeAuth)));
+  }
+
+  // ── Multipart ─────────────────────────────────────────────────────────────
 
   Future<http.StreamedResponse> postMultipart(
     String path,
@@ -123,80 +143,58 @@ class ApiClient {
     http.MultipartFile? file,
     bool includeAuth = true,
   }) async {
-    await _ensureInitialized(); // Added check
+    await _ensureInitialized();
     final url = Uri.parse('$baseUrl$path');
-    var request = http.MultipartRequest('POST', url);
-    request.headers.addAll(
-      _getHeaders(includeAuth: includeAuth, isMultiPart: true),
-    );
-    request.fields.addAll(fields);
-    if (file != null) {
-      request.files.add(file);
-    }
-    return request.send();
+    final request = http.MultipartRequest('POST', url)
+      ..headers.addAll(_headers(withAuth: includeAuth, multipart: true))
+      ..fields.addAll(fields);
+    if (file != null) request.files.add(file);
+    return _withTimeout(request.send());
   }
 
   Future<http.Response> uploadFile(String path, String filePath) async {
-    try {
-      await _ensureInitialized(); // Added check
-      print('📤 Uploading file: $filePath to $path');
-      final url = Uri.parse('$baseUrl$path');
-      var request = http.MultipartRequest('POST', url);
-      request.headers.addAll(_getHeaders(includeAuth: true, isMultiPart: true));
-      
-      print('📤 Headers: ${request.headers}');
-      request.files.add(await http.MultipartFile.fromPath('profile_photo', filePath));
-      
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-      return response;
-    } catch (e) {
-      print('📤 Upload file error: $e');
-      throw Exception('Error uploading file: $e');
-    }
+    await _ensureInitialized();
+    debugPrint('📤 uploadFile: $filePath → $path');
+    final url = Uri.parse('$baseUrl$path');
+    final request = http.MultipartRequest('POST', url)
+      ..headers.addAll(_headers(withAuth: true, multipart: true))
+      ..files.add(await http.MultipartFile.fromPath('profile_photo', filePath));
+    final streamed = await _withTimeout(request.send());
+    return http.Response.fromStream(streamed);
   }
 
-  Future<http.Response> uploadFileWithData(String path, String filePath, String fileFieldName, Map<String, dynamic> formData) async {
-    try {
-      await _ensureInitialized(); // Added check
-      print('📤 Uploading file with data: $filePath to $path');
-      final url = Uri.parse('$baseUrl$path');
-      var request = http.MultipartRequest('POST', url);
-      request.headers.addAll(_getHeaders(includeAuth: true, isMultiPart: true));
-      
-      request.files.add(await http.MultipartFile.fromPath(fileFieldName, filePath));
-      
-      formData.forEach((key, value) {
-        request.fields[key] = value.toString();
-      });
-      
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-      return response;
-    } catch (e) {
-      print('📤 Upload file with data error: $e');
-      throw Exception('Error uploading file with data: $e');
-    }
+  Future<http.Response> uploadFileWithData(
+    String path,
+    String filePath,
+    String fileFieldName,
+    Map<String, dynamic> formData,
+  ) async {
+    await _ensureInitialized();
+    debugPrint('📤 uploadFileWithData: $filePath → $path');
+    final url = Uri.parse('$baseUrl$path');
+    final request = http.MultipartRequest('POST', url)
+      ..headers.addAll(_headers(withAuth: true, multipart: true))
+      ..files.add(await http.MultipartFile.fromPath(fileFieldName, filePath));
+    formData.forEach((k, v) => request.fields[k] = v.toString());
+    final streamed = await _withTimeout(request.send());
+    return http.Response.fromStream(streamed);
   }
 
-  Future<http.Response> uploadFileWithFieldName(String path, String filePath, String fieldName) async {
-    try {
-      await _ensureInitialized(); // Added check
-      print('📤 Uploading file with custom field name: $filePath to $path');
-      final url = Uri.parse('$baseUrl$path');
-      var request = http.MultipartRequest('POST', url);
-      request.headers.addAll(_getHeaders(includeAuth: true, isMultiPart: true));
-      
-      request.files.add(await http.MultipartFile.fromPath(fieldName, filePath));
-      
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-      return response;
-    } catch (e) {
-      print('📤 Upload file with custom field name error: $e');
-      throw Exception('Error uploading file with custom field name: $e');
-    }
+  Future<http.Response> uploadFileWithFieldName(
+    String path,
+    String filePath,
+    String fieldName,
+  ) async {
+    await _ensureInitialized();
+    debugPrint('📤 uploadFileWithFieldName: $filePath → $path');
+    final url = Uri.parse('$baseUrl$path');
+    final request = http.MultipartRequest('POST', url)
+      ..headers.addAll(_headers(withAuth: true, multipart: true))
+      ..files.add(await http.MultipartFile.fromPath(fieldName, filePath));
+    final streamed = await _withTimeout(request.send());
+    return http.Response.fromStream(streamed);
   }
 }
 
-final apiClient = ApiClient(); // Global instance
+/// Global singleton — all API classes share this instance.
+final apiClient = ApiClient();

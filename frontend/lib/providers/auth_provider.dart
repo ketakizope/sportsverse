@@ -1,5 +1,9 @@
-import 'dart:io';
+// lib/providers/auth_provider.dart
+//
+// Manages auth state: login, register, logout, and — crucially —
+// token validation on app start via /api/accounts/me/.
 
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:sportsverse_app/api/api_client.dart';
 import 'package:sportsverse_app/api/auth_api.dart';
@@ -13,7 +17,7 @@ class AuthProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
-// Getters
+  // ── Getters ───────────────────────────────────────────────────────────────
   User? get currentUser => _currentUser;
   String? get token => _token;
   ProfileDetails? get profileDetails => _profileDetails;
@@ -21,19 +25,58 @@ class AuthProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
+  // ── Token validation on app start ─────────────────────────────────────────
+
+  /// Called once in _SportsVerseAppState.initState().
+  /// Loads the stored token → validates it against /me/ → populates user state.
   Future<void> initAuth() async {
     _isLoading = true;
     notifyListeners();
-    await apiClient.init(); // Initialize token from storage
-    _token = apiClient.getToken();
-    if (_token != null) {
-      // You might want to validate the token with your backend here
-      // For simplicity, we'll assume a stored token means logged in
-      // In a real app, fetch user profile to confirm validity
+
+    try {
+      await apiClient.init(); // loads token from SharedPreferences
+      _token = apiClient.getToken();
+
+      if (_token != null) {
+        debugPrint('🔑 AuthProvider: token found, validating via /me/...');
+        final meData = await authApi.getMe();
+
+        if (meData != null) {
+          // Token is still valid — hydrate user + profile
+          _currentUser = User.fromJson(meData);
+          if (meData['profile_details'] != null) {
+            _profileDetails = ProfileDetails.fromJson(
+              meData['profile_details'] as Map<String, dynamic>,
+            );
+          }
+          _mustChangePassword =
+              (meData['must_change_password'] as bool?) ?? false;
+          debugPrint(
+            '✅ AuthProvider: session restored for ${_currentUser?.username}',
+          );
+        } else {
+          // Token expired / revoked — clear everything
+          debugPrint('⚠️ AuthProvider: token invalid (401), clearing session');
+          _token = null;
+          _currentUser = null;
+          _profileDetails = null;
+          apiClient.setToken(null);
+        }
+      } else {
+        debugPrint('🔑 AuthProvider: no stored token, showing login');
+      }
+    } catch (e) {
+      // Network error during init → stay logged out, don't crash
+      debugPrint('⚠️ AuthProvider.initAuth error: $e');
+      _token = null;
+      _currentUser = null;
     }
+
     _isLoading = false;
     notifyListeners();
   }
+
+  // ── Login ─────────────────────────────────────────────────────────────────
 
   Future<void> login(String emailOrUsername, String password) async {
     _isLoading = true;
@@ -41,28 +84,24 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // DEBUG: Printing to console to verify what is being sent
-      debugPrint('🚀 AuthProvider: Attempting login for: $emailOrUsername');
-      
-      // We pass the value to authApi.login
-      // Ensure that inside auth_api.dart, the key in the map is 'username'
+      debugPrint('🚀 AuthProvider: login attempt for $emailOrUsername');
       final authResponse = await authApi.login(emailOrUsername, password);
-      
+
       _currentUser = authResponse.user;
       _token = authResponse.token;
       _profileDetails = authResponse.profileDetails;
       _mustChangePassword = authResponse.mustChangePassword;
-      _isLoading = false;
-      notifyListeners();
-      
-      debugPrint('✅ AuthProvider: Login successful for ${authResponse.user.username}');
+      debugPrint('✅ AuthProvider: login OK for ${authResponse.user.username}');
     } catch (e) {
-      debugPrint('❌ AuthProvider Error: $e');
+      debugPrint('❌ AuthProvider.login error: $e');
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      _isLoading = false;
-      notifyListeners();
     }
+
+    _isLoading = false;
+    notifyListeners();
   }
+
+  // ── Register ──────────────────────────────────────────────────────────────
 
   Future<void> registerAcademy({
     required String organizationFullName,
@@ -99,14 +138,15 @@ class AuthProvider with ChangeNotifier {
         adminPassword: adminPassword,
         academyLogoFile: academyLogoFile,
       );
-      _isLoading = false;
-      notifyListeners();
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
       _isLoading = false;
       notifyListeners();
-      rethrow; // Re-throw to allow screen to catch and show specific error
+      rethrow;
     }
+
+    _isLoading = false;
+    notifyListeners();
   }
 
   Future<void> registerCoachStudentStaff({
@@ -142,17 +182,19 @@ class AuthProvider with ChangeNotifier {
         parentPhoneNumber: parentPhoneNumber,
         parentEmail: parentEmail,
       );
-      _isLoading = false;
-      notifyListeners();
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
       _isLoading = false;
       notifyListeners();
       rethrow;
     }
+
+    _isLoading = false;
+    notifyListeners();
   }
 
-  // Method to clear must_change_password flag
+  // ── Misc ──────────────────────────────────────────────────────────────────
+
   void clearMustChangePassword() {
     _mustChangePassword = false;
     notifyListeners();

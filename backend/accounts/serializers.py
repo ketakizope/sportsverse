@@ -130,11 +130,15 @@ class RegisterAcademySerializer(serializers.Serializer):
 
         return organization
 
+import logging
+
 from rest_framework import serializers
-from django.contrib.auth import authenticate
-from django.contrib.auth import get_user_model
+from django.contrib.auth import authenticate, get_user_model
+
+_auth_logger = logging.getLogger(__name__)
 
 User = get_user_model()
+
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
@@ -144,34 +148,26 @@ class LoginSerializer(serializers.Serializer):
         username_input = data.get('username')
         password = data.get('password')
 
-        if username_input and password:
-            # 1. Look for the user in the database
-            user_obj = User.objects.filter(email=username_input).first()
-            if not user_obj:
-                user_obj = User.objects.filter(username=username_input).first()
-
-            if user_obj:
-                # DEBUG: Check if user was found
-                print(f"DEBUG: Found User in DB: {user_obj.username}")
-                
-                # 2. Check if the password is correct
-                user = authenticate(username=user_obj.username, password=password)
-                
-                if not user:
-                    # DEBUG: Password failed
-                    print(f"DEBUG: Password authentication failed for: {user_obj.username}")
-                    raise serializers.ValidationError("Invalid password.")
-            else:
-                # DEBUG: Email/Username not found
-                print(f"DEBUG: No user found with email/username: {username_input}")
-                raise serializers.ValidationError("User does not exist.")
-
-            # If user is inactive, they can't login
-            if not user.is_active:
-                raise serializers.ValidationError("This account is disabled.")
-        else:
+        if not (username_input and password):
             raise serializers.ValidationError("Must include both username and password.")
+
+        # Support login by email or username
+        user_obj = User.objects.filter(email=username_input).first()
+        if not user_obj:
+            user_obj = User.objects.filter(username=username_input).first()
+
+        if not user_obj:
+            _auth_logger.warning("LoginSerializer: no user found for '%s'", username_input)
+            raise serializers.ValidationError("User does not exist.")
+
+        _auth_logger.debug("LoginSerializer: found user '%s'", user_obj.username)
+        user = authenticate(username=user_obj.username, password=password)
+        if not user:
+            _auth_logger.warning("LoginSerializer: invalid password for '%s'", user_obj.username)
+            raise serializers.ValidationError("Invalid password.")
+
+        if not user.is_active:
+            raise serializers.ValidationError("This account is disabled.")
 
         data['user'] = user
         return data
-

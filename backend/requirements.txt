@@ -19,8 +19,8 @@ Pillow>=10.0.0  # For ImageField uploads (logos, icons)
 # Email Support
 django-extensions>=3.2.0  # Useful development extensions
 
-# Environment Variables (recommended)
-python-decouple>=3.8  # For managing environment variables
+# Environment Variables (required)
+python-decouple>=3.8  # Reads secrets from .env file (see .env.example)
 
 # Development & Testing (optional)
 django-debug-toolbar>=4.0.0  # For debugging (development only)
