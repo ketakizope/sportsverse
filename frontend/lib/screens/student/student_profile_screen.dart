@@ -1,10 +1,24 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:sportsverse_app/providers/auth_provider.dart';
 import 'package:sportsverse_app/api/student_api.dart';
 import 'package:sportsverse_app/models/user.dart';
-import 'dart:io';
+
+// ─── DUPR helpers (same scale as dashboard) ───────────────────────────────────
+String _duprTierLabel(double r) {
+  if (r >= 6.0) return 'Elite';
+  if (r >= 4.5) return 'Advanced';
+  if (r >= 3.0) return 'Intermediate';
+  return 'Beginner';
+}
+Color _duprTierColor(double r) {
+  if (r >= 6.0) return const Color(0xFFE65100);
+  if (r >= 4.5) return const Color(0xFF2E7D32);
+  if (r >= 3.0) return const Color(0xFF1565C0);
+  return const Color(0xFF6A1B9A);
+}
 
 class StudentProfileScreen extends StatefulWidget {
   const StudentProfileScreen({super.key});
@@ -525,7 +539,19 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                   ),
                   
                   const SizedBox(height: 32),
-                  
+
+                  // ── DUPR Rating Section ─────────────────────────────────────
+                  _buildSectionHeader('My DUPR Rating'),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Your internal skill rating for each sport',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildDuprSection(),
+
+                  const SizedBox(height: 32),
+
                   // Action Buttons
                   if (_isEditing) ...[
                     Row(
@@ -677,6 +703,167 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
             color: value != null ? Colors.black87 : Colors.grey.shade600,
           ),
         ),
+      ),
+    );
+  }
+
+  // ── DUPR Rating Section ────────────────────────────────────────────────────
+
+  Widget _buildDuprSection() {
+    // Provisional defaults – replaced by real API data in PR2
+    const double singlesRating = 4.000;
+    const double doublesRating = 4.000;
+    const int matchesSingles = 0;
+    const int matchesDoubles = 0;
+    const int reliability = 0;
+    final bool isProvisional = matchesSingles < 10;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Two rating tiles side-by-side
+        Row(
+          children: [
+            Expanded(child: _duprRatingTile("Singles", singlesRating, matchesSingles)),
+            const SizedBox(width: 12),
+            Expanded(child: _duprRatingTile("Doubles", doublesRating, matchesDoubles)),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // Reliability bar
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0F7F4),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Rating Reliability",
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  Text("$reliability / 100",
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Color(0xFF006C62))),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: reliability / 100,
+                  backgroundColor: const Color(0xFF006C62).withOpacity(0.1),
+                  color: const Color(0xFF006C62),
+                  minHeight: 8,
+                ),
+              ),
+              if (isProvisional) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.info_outline,
+                        size: 13, color: Color(0xFF006C62)),
+                    const SizedBox(width: 6),
+                    Text(
+                      "Play ${10 - matchesSingles} more match(es) to establish rating",
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF006C62)),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Recent changes (placeholder until PR2)
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.grey.shade100),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Recent Rating Changes",
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              const SizedBox(height: 12),
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Column(
+                    children: [
+                      Icon(Icons.history, color: Colors.grey, size: 32),
+                      SizedBox(height: 8),
+                      Text("No matches recorded yet",
+                          style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      SizedBox(height: 4),
+                      Text(
+                          "Your rating history will appear here once\nyou play your first rated match.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey, fontSize: 11)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _duprRatingTile(String format, double rating, int matches) {
+    final color = _duprTierColor(rating);
+    final tier = _duprTierLabel(rating);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(format,
+              style: TextStyle(
+                  color: color, fontWeight: FontWeight.bold, fontSize: 11)),
+          const SizedBox(height: 6),
+          Text(rating.toStringAsFixed(3),
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 24, color: Colors.black87)),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(tier,
+                    style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10)),
+              ),
+              const Spacer(),
+              Text("$matches matches",
+                  style:
+                      const TextStyle(color: Colors.grey, fontSize: 10)),
+            ],
+          ),
+        ],
       ),
     );
   }

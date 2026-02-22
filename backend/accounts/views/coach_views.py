@@ -1,8 +1,9 @@
-# accounts/views/coach_views.py — Coach dashboard endpoint
+# accounts/views/coach_views.py — Coach dashboard + student list + attendance
 
 import logging
 from datetime import date, timedelta
 
+from django.db import transaction
 from django.db.models import Sum, Q
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -10,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from coaches.models import CoachProfile, CoachAssignment
-from organizations.models import Attendance, Enrollment
+from organizations.models import Attendance, Enrollment, Batch
 from payments.models import CoachSalaryTransaction
 
 logger = logging.getLogger(__name__)
@@ -197,3 +198,154 @@ class CoachDashboardView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+# ─── CoachStudentListView ─────────────────────────────────────────────────────
+
+class CoachStudentListView(APIView):
+    """
+    GET /api/accounts/coach/students/
+
+    Returns all enrolled students across the coach's assigned batches.
+    Optional ?batch_id=X to filter to one batch.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if user.user_type != 'COACH' or not hasattr(user, 'coach_profile'):
+            return Response({'error': 'Coach access required.'}, status=status.HTTP_403_FORBIDDEN)
+
+        coach = user.coach_profile
+        batch_id = request.query_params.get('batch_id')
+
+        # All batch IDs assigned to this coach
+        assignment_qs = CoachAssignment.objects.filter(coach=coach).select_related('batch', 'branch', 'batch__sport')
+        if batch_id:
+            assignment_qs = assignment_qs.filter(batch_id=batch_id)
+
+        batch_ids = list(assignment_qs.values_list('batch_id', flat=True))
+
+        enrollments = (
+            Enrollment.objects
+            .filter(batch_id__in=batch_ids, is_active=True)
+            .select_related('student__user', 'batch', 'batch__sport', 'batch__branch')
+            .order_by('batch__name', 'student__user__first_name')
+        )
+
+        batches_map = {a.batch_id: a for a in assignment_qs}
+        data = []
+        for enr in enrollments:
+            sp = enr.student
+            u = sp.user
+            batch = enr.batch
+            data.append({
+                'enrollment_id': enr.pk,
+                'student_id': sp.pk,
+                'user_id': u.pk,
+                'username': u.username,
+                'first_name': u.first_name or sp.first_name,
+                'last_name': u.last_name or sp.last_name,
+                'batch_id': batch.pk,
+                'batch_name': batch.name,
+                'sport_name': batch.sport.name,
+                'branch_name': batch.branch.name,
+                'enrollment_type': enr.enrollment_type,
+                'sessions_attended': enr.sessions_attended,
+                'total_sessions': enr.total_sessions,
+                'is_active': enr.is_active,
+            })
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
+# ─── CoachAttendanceView ──────────────────────────────────────────────────────
+
+class CoachAttendanceView(APIView):
+    """
+    POST /api/accounts/coach/attendance/
+
+    Coach marks attendance for one or more students in a batch.
+
+    Payload:
+    {
+        "batch_id": 3,
+        "date": "2026-02-22",
+        "records": [
+            {"enrollment_id": 12, "present": true},
+            {"enrollment_id": 13, "present": false}
+        ]
+    }
+
+    Only enrollments where present=true create Attendance records.
+    Duplicate attendance for the same (enrollment, date) is silently skipped.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if user.user_type != 'COACH' or not hasattr(user, 'coach_profile'):
+            return Response({'error': 'Coach access required.'}, status=status.HTTP_403_FORBIDDEN)
+
+        coach = user.coach_profile
+        data = request.data
+
+        batch_id = data.get('batch_id')
+        att_date = data.get('date')
+        records = data.get('records', [])
+
+        if not batch_id or not att_date or not records:
+            return Response({'error': 'batch_id, date, and records are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Verify coach is assigned to this batch
+        if not CoachAssignment.objects.filter(coach=coach, batch_id=batch_id).exists():
+            return Response({'error': 'You are not assigned to this batch.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            batch = Batch.objects.select_related('organization').get(pk=batch_id)
+        except Batch.DoesNotExist:
+            return Response({'error': 'Batch not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        created_count = 0
+        skipped_count = 0
+        errors = []
+
+        with transaction.atomic():
+            for rec in records:
+                enrollment_id = rec.get('enrollment_id')
+                present = rec.get('present', False)
+
+                if not present:
+                    continue  # absent: no record needed
+
+                try:
+                    enr = Enrollment.objects.get(pk=enrollment_id, batch_id=batch_id, is_active=True)
+                except Enrollment.DoesNotExist:
+                    errors.append(f'Enrollment {enrollment_id} not found or inactive.')
+                    continue
+
+                # Skip duplicates (unique_together enforcement)
+                if Attendance.objects.filter(enrollment=enr, date=att_date).exists():
+                    skipped_count += 1
+                    continue
+
+                Attendance.objects.create(
+                    enrollment=enr,
+                    batch=batch,
+                    student=enr.student,
+                    organization=batch.organization,
+                    date=att_date,
+                    marked_by=user,
+                )
+                created_count += 1
+
+        logger.info(
+            'CoachAttendanceView: coach_id=%s batch_id=%s date=%s created=%d skipped=%d',
+            coach.pk, batch_id, att_date, created_count, skipped_count,
+        )
+
+        return Response({
+            'created': created_count,
+            'skipped_duplicates': skipped_count,
+            'errors': errors,
+        }, status=status.HTTP_201_CREATED)

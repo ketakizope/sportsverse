@@ -2,12 +2,14 @@
 ratings/urls.py
 
 URL routing for the DUPR internal rating system.
-PR1: stubs only — full views added in PR2.
 """
 from django.urls import path
+from ratings.views import StudentRatingsView, MatchSubmitView, MatchListView
 
 app_name = "ratings"
 
-# Full views are implemented in PR2.
-# Added here so the import in sportsverse_project/urls.py resolves cleanly.
-urlpatterns = []
+urlpatterns = [
+    path('students/', StudentRatingsView.as_view(), name='student-ratings'),
+    path('matches/', MatchSubmitView.as_view(), name='match-submit'),
+    path('matches/list/', MatchListView.as_view(), name='match-list'),
+]

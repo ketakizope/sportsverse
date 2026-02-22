@@ -42,18 +42,9 @@ class _LoginScreenState extends State<LoginScreen> {
         _showSnackBar('Login successful!', Colors.green);
         print('🔐 Navigating based on user role: ${authProvider.currentUser?.userType}');
 
-        // 4. Role-based Navigation
-        String userRole = authProvider.currentUser?.userType ?? 'STUDENT';
-
-        if (userRole == 'STUDENT') {
-          Navigator.of(context).pushNamedAndRemoveUntil('/student-home', (route) => false);
-        } else if (userRole == 'ACADEMY_ADMIN') {
-          Navigator.of(context).pushNamedAndRemoveUntil('/admin-home', (route) => false);
-        } else if (userRole == 'COACH') {
-          Navigator.of(context).pushNamedAndRemoveUntil('/coach-home', (route) => false);
-        } else {
-          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-        }
+        // 4. Navigate to '/' — the root route's Consumer<AuthProvider> already
+        //    switches to the correct dashboard based on user type.
+        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
         
       } else {
         // Handle failed login (wrong credentials)

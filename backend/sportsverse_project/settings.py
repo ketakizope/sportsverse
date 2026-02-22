@@ -83,12 +83,12 @@ else:
 # ─── Database ─────────────────────────────────────────────────────────────────
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql', # For MySQL
-        'NAME': 'sportsverse_db',             # Your MySQL database name
-        'USER': 'root',            # Your MySQL username
-        'PASSWORD': 'Avadhoot14k',    # Your MySQL password
-        'HOST': 'localhost',                  # Or your database host (e.g., 'localhost')
-        'PORT': '3306', 
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME':     config('DB_NAME', default='sportsverse_db'),
+        'USER':     config('DB_USER', default='root'),
+        'PASSWORD': config('DB_PASSWORD', default=''),
+        'HOST':     config('DB_HOST', default='localhost'),
+        'PORT':     config('DB_PORT', default='3306'),
     }
 }
 

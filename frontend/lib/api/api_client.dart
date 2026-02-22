@@ -13,10 +13,11 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiClient {
-  // Resolved at compile time via --dart-define; falls back to Android emulator alias.
+  // Resolved at compile time via --dart-define; falls back to localhost (for Chrome/Web).
+  // For Android Emulator, use --dart-define=API_BASE_URL=http://10.0.2.2:8000
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000',
+    defaultValue: 'http://localhost:8000',
   );
 
   static const Duration _kTimeout = Duration(seconds: 30);
@@ -31,6 +32,7 @@ class ApiClient {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('auth_token');
     _isInitialized = true;
+    debugPrint('🌐 ApiClient: baseUrl is $baseUrl');
     debugPrint('🔑 ApiClient: token ${_token != null ? 'loaded' : 'not found'}');
   }
 

@@ -145,7 +145,11 @@ class LoginView(APIView):
             profile_data = {
                 'organization_id': user.coach_profile.organization.id,
                 'organization_name': user.coach_profile.organization.academy_name,
-                'assigned_branches': [b.id for b in user.coach_profile.branches.all()],
+                'assigned_branches': list(
+                    user.coach_profile.assignments
+                    .values_list('branch_id', flat=True)
+                    .distinct()
+                ),
             }
         elif user.user_type == 'STUDENT' and hasattr(user, 'student_profile'):
             student = user.student_profile

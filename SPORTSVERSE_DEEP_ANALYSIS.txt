@@ -17,8 +17,11 @@ TABLE OF CONTENTS
    A6. organizations/models.py (Core DB Models)
    A7. payments/models.py (Financial Models)
    A8. coaches/models.py (Coach Models)
-   A9. frontend/lib/main.dart (Flutter UI Entrypoint)
-   A10. frontend/lib/api/api_client.dart (HTTP Client)
+   A9. ratings/rating.py (DUPR Engine)
+   A10. ratings/models.py (Rating Models)
+   A11. ratings/tests/test_rating.py (Rating Tests)
+   A12. frontend/lib/main.dart (Flutter UI Entrypoint)
+   A13. frontend/lib/api/api_client.dart (HTTP Client)
 5. Section B: Developer Session - Commands & Sample Requests
 6. Section C: Frontend Map - Pages, Routes & Components
 7. Section D: Background Jobs / Cron / Scheduled Tasks
@@ -433,7 +436,93 @@ SUGGESTED PATCH:
 
 
 --------------------------------------------------------------------------------
-FILE 9: frontend/lib/main.dart  (FLUTTER APP ENTRYPOINT)
+FILE 9: backend/ratings/rating.py  (DUPR ENGINE)
+--------------------------------------------------------------------------------
+WHAT IT DOES:
+  - The "Brain" of the DUPR-style rating system.
+  - Stateless, deterministic engine that converts DUPR ratings to ELO and back.
+  - Implements logistic expected score, K-factors, recency decay, and reliability.
+  - Handles both Singles and Doubles updates with score-based delta weighting.
+
+KEY LOGIC & CONSTANTS:
+  - Scale: 300 ELO points per 1.0 DUPR point. (4.000 DUPR = 1500 ELO).
+  - Range: Clamped between 2.000 and 8.000.
+  - K-Factor (line 82): Multipliers for CASUAL (0.8), LEAGUE (1.0), TOURNAMENT (1.2).
+  - Provisional Boost: 1.5x multiplier for players with < 10 matches.
+  - Score-based Delta (line 219): actual_score = games_won / total_games.
+    This ensures rating changes reflect the "decisiveness" of the win/loss.
+  - Exponential Decay (line 103): recency_weight = exp(-lambda * age_days).
+    Half-life defaults to 90 days.
+
+STRENGTHS:
+  - Pure functions: Zero database dependencies; perfectly testable.
+  - Scientific: Uses standard ELO math modified for pickleball/tennis DUPR standards.
+
+SUGGESTED PATCH:
+  # Add validation for total_games in update_doubles to avoid ZeroDivisionError:
+  if total_games == 0:
+      actual_a = 0.5  # Draw if no games played
+
+
+--------------------------------------------------------------------------------
+FILE 10: backend/ratings/models.py  (RATING MODELS)
+--------------------------------------------------------------------------------
+WHAT IT DOES:
+  - Persistence layer for the DUPR system.
+  - Stores player state, match submissions, and historical audit logs.
+
+CORE MODELS:
+  PlayerRatingProfile (line 24):
+    - Per-user, per-sport, per-org current ratings (Singles & Doubles).
+    - Tracks matches_played and reliability score (0-100).
+  
+  RatingMatch (line 99):
+    - Stores match results, format (Singles/Doubles), importance, and status.
+    - participants: JSON list of user IDs [winner1, winner2, loser1, loser2].
+    - score: JSON object containing sets/games data.
+    - dedup_hash (line 213): SHA-256 hash of participants + date + score to
+      prevent double-reporting the same match.
+
+  RatingAudit (line 234):
+    - Immutable log of every single rating change.
+    - Stores old_rating, new_rating, delta, and the match responsible.
+
+POTENTIAL BUGS:
+  - Line 165: JSONField for participants order relies on convention [winners..., losers...].
+    This should be enforced by validation logic in the view/serializer.
+  - Line 173: dedup_hash unique=True is good, but compute_dedup_hash needs to
+    ensure stable JSON serialization (json.dumps sort_keys=True is used, which is good).
+
+SUGGESTED PATCH:
+  # Add signal or background task to process RatingMatch when validated=True.
+
+
+--------------------------------------------------------------------------------
+FILE 11: backend/ratings/tests/test_rating.py  (RATING TESTS)
+--------------------------------------------------------------------------------
+WHAT IT DOES:
+  - 300+ lines of comprehensive unit tests for the rating engine.
+  - Uses SimpleTestCase (no DB) for maximum speed.
+  - Validates all edge cases: zero-sum gaps, upsets, provisional boosts,
+    decisive wins, and coordinate system round-trips.
+
+CRITICAL TESTS:
+  - test_win_loss_zero_sum (line 251): Verifies ELO remains zero-sum (within rounding).
+  - test_upset_winner_gains_more (line 243): Verifies higher reward for beating 
+    higher-rated opponents.
+  - test_symmetric_teams (line 309): Validates doubles logic for both expected
+    and unexpected results.
+  - test_half_life_decay (line 143): Verifies recency weight at 90 days is 0.5.
+
+LATEST CHANGES OBSERVED:
+  - Implementation of "score-based delta" (score_a / (score_a + score_b)) instead
+    of binary 1.0/0.0.
+  - Fixed doubles logic to ensure winning team members always gain rating in 
+    decisive wins, even if individual rating gaps differ.
+
+
+--------------------------------------------------------------------------------
+FILE 12: frontend/lib/main.dart (FLUTTER APP ENTRYPOINT)
 --------------------------------------------------------------------------------
 WHAT IT DOES:
   - Sets up MultiProvider with AuthProvider and StudentProvider.
@@ -474,7 +563,7 @@ SUGGESTED PATCH:
 
 
 --------------------------------------------------------------------------------
-FILE 10: frontend/lib/api/api_client.dart  (FLUTTER HTTP CLIENT)
+FILE 13: frontend/lib/api/api_client.dart  (FLUTTER HTTP CLIENT)
 --------------------------------------------------------------------------------
 WHAT IT DOES:
   - Global singleton HTTP client for all API calls (get, post, put, delete, patch).
@@ -545,6 +634,7 @@ python manage.py makemigrations communications
 python manage.py makemigrations content
 python manage.py makemigrations academy_contents
 python manage.py makemigrations academy_reports
+python manage.py makemigrations ratings
 python manage.py migrate
 
 # 7. Create superuser
@@ -580,8 +670,8 @@ flutter run
 cd backend
 python manage.py test
 
-# Note: accounts/tests.py, organizations/tests.py only contain placeholder (pass).
-# There are effectively NO tests written yet.
+# Note: The 'ratings' app contains comprehensive unit tests (ratings/tests/test_rating.py).
+# Other apps (accounts, organizations) may still have placeholder tests.
 
 # Flutter tests:
 cd frontend/sportsverse_app

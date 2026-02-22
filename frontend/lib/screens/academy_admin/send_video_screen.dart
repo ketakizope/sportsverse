@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart' as dio_pkg;
+import 'package:sportsverse_app/api/api_client.dart';
 
 class SendVideoScreen extends StatefulWidget {
   const SendVideoScreen({super.key});
@@ -33,7 +34,7 @@ class _SendVideoScreenState extends State<SendVideoScreen> {
   Future<void> _fetchBranches() async {
     try {
       final dio = dio_pkg.Dio();
-      final response = await dio.get("http://10.0.2.2:8000/api/organizations/branches/");
+      final response = await dio.get("${ApiClient.baseUrl}/api/organizations/branches/");
       setState(() => _branches = response.data);
     } catch (e) { debugPrint("Error: $e"); }
   }
@@ -41,7 +42,7 @@ class _SendVideoScreenState extends State<SendVideoScreen> {
   Future<void> _fetchBatches(String branchId) async {
     try {
       final dio = dio_pkg.Dio();
-      final response = await dio.get("http://10.0.2.2:8000/api/organizations/batches/?branch=$branchId");
+      final response = await dio.get("${ApiClient.baseUrl}/api/organizations/batches/?branch=$branchId");
       setState(() {
         _batches = response.data;
         _selectedBatch = null;
@@ -54,7 +55,7 @@ class _SendVideoScreenState extends State<SendVideoScreen> {
   Future<void> _fetchStudents(String batchId) async {
     try {
       final dio = dio_pkg.Dio();
-      final response = await dio.get("http://10.0.2.2:8000/api/accounts/students/?batch=$batchId");
+      final response = await dio.get("${ApiClient.baseUrl}/api/accounts/students/?batch=$batchId");
       setState(() => _students = response.data);
     } catch (e) { debugPrint("Error: $e"); }
   }
@@ -169,8 +170,8 @@ class _SendVideoScreenState extends State<SendVideoScreen> {
         "target_students": _selectedStudentIds, // SENDING TARGET DATA
         "video_file": await dio_pkg.MultipartFile.fromFile(_videoFile!.path),
       });
-      await dio.post("http://10.0.2.2:8000/api/academy-contents/videos/", data: formData);
-      Navigator.pop(context);
+      await dio.post("${ApiClient.baseUrl}/api/academy-contents/videos/", data: formData);
+      if (mounted) Navigator.pop(context);
     } catch (e) {
       debugPrint("Upload Error: $e");
     } finally {

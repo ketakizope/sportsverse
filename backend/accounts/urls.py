@@ -12,6 +12,8 @@ from .views import (
     MeView,
     # Coach
     CoachDashboardView,
+    CoachStudentListView,
+    CoachAttendanceView,
     # Admin / financials
     BatchFinancialsSummaryView,
     CollectStudentFeeView,
@@ -44,6 +46,8 @@ urlpatterns = [
 
     # ── Coach ────────────────────────────────────────────────────────────────
     path('coach-dashboard/', CoachDashboardView.as_view(), name='coach-dashboard'),
+    path('coach/students/', CoachStudentListView.as_view(), name='coach-students'),
+    path('coach/attendance/', CoachAttendanceView.as_view(), name='coach-attendance'),
 
     # ── Admin ────────────────────────────────────────────────────────────────
     path('dashboard-stats/', dashboard_stats, name='dashboard-stats'),

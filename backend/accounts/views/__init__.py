@@ -34,7 +34,7 @@ from .admin_views import (
     FaceRecognitionAttendanceView,
 )
 
-from .coach_views import CoachDashboardView
+from .coach_views import CoachDashboardView, CoachStudentListView, CoachAttendanceView
 
 __all__ = [
     # Auth
@@ -63,4 +63,6 @@ __all__ = [
     'FaceRecognitionAttendanceView',
     # Coach
     'CoachDashboardView',
+    'CoachStudentListView',
+    'CoachAttendanceView',
 ]

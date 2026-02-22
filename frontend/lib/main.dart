@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:sportsverse_app/api/api_client.dart';
 import 'package:sportsverse_app/providers/auth_provider.dart';
 import 'package:sportsverse_app/providers/student_provider.dart';
-import 'package:sportsverse_app/screens/academy_admin/coach_dashboard_screen.dart';
+import 'package:sportsverse_app/screens/coach/coach_dashboard_screen.dart';
 import 'package:sportsverse_app/screens/student/student_dashboard_screen.dart';
 import 'package:sportsverse_app/screens/auth/login_screen.dart';
 import 'package:sportsverse_app/screens/auth/register_academy_screen.dart';
