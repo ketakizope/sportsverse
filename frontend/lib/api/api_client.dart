@@ -85,7 +85,7 @@ class ApiClient {
 
   Future<http.Response> get(String path, {bool includeAuth = true}) async {
     await _ensureInitialized();
-    final url = Uri.parse('$baseUrl$path');
+    final url = Uri.parse('$baseUrl${path.endsWith('/') ? path : '$path/'}');
     return _withTimeout(http.get(url, headers: _headers(withAuth: includeAuth)));
   }
 
@@ -95,7 +95,7 @@ class ApiClient {
     bool includeAuth = true,
   }) async {
     await _ensureInitialized();
-    final url = Uri.parse('$baseUrl$path');
+    final url = Uri.parse('$baseUrl${path.endsWith('/') ? path : '$path/'}');
     return _withTimeout(http.post(
       url,
       headers: _headers(withAuth: includeAuth),
@@ -109,7 +109,7 @@ class ApiClient {
     bool includeAuth = true,
   }) async {
     await _ensureInitialized();
-    final url = Uri.parse('$baseUrl$path');
+    final url = Uri.parse('$baseUrl${path.endsWith('/') ? path : '$path/'}');
     return _withTimeout(http.put(
       url,
       headers: _headers(withAuth: includeAuth),
@@ -123,7 +123,7 @@ class ApiClient {
     bool includeAuth = true,
   }) async {
     await _ensureInitialized();
-    final url = Uri.parse('$baseUrl$path');
+    final url = Uri.parse('$baseUrl${path.endsWith('/') ? path : '$path/'}');
     return _withTimeout(http.patch(
       url,
       headers: _headers(withAuth: includeAuth),
@@ -133,7 +133,7 @@ class ApiClient {
 
   Future<http.Response> delete(String path, {bool includeAuth = true}) async {
     await _ensureInitialized();
-    final url = Uri.parse('$baseUrl$path');
+    final url = Uri.parse('$baseUrl${path.endsWith('/') ? path : '$path/'}');
     return _withTimeout(http.delete(url, headers: _headers(withAuth: includeAuth)));
   }
 
@@ -146,7 +146,7 @@ class ApiClient {
     bool includeAuth = true,
   }) async {
     await _ensureInitialized();
-    final url = Uri.parse('$baseUrl$path');
+    final url = Uri.parse('$baseUrl${path.endsWith('/') ? path : '$path/'}');
     final request = http.MultipartRequest('POST', url)
       ..headers.addAll(_headers(withAuth: includeAuth, multipart: true))
       ..fields.addAll(fields);
@@ -157,7 +157,7 @@ class ApiClient {
   Future<http.Response> uploadFile(String path, String filePath) async {
     await _ensureInitialized();
     debugPrint('📤 uploadFile: $filePath → $path');
-    final url = Uri.parse('$baseUrl$path');
+    final url = Uri.parse('$baseUrl${path.endsWith('/') ? path : '$path/'}');
     final request = http.MultipartRequest('POST', url)
       ..headers.addAll(_headers(withAuth: true, multipart: true))
       ..files.add(await http.MultipartFile.fromPath('profile_photo', filePath));
@@ -173,7 +173,7 @@ class ApiClient {
   ) async {
     await _ensureInitialized();
     debugPrint('📤 uploadFileWithData: $filePath → $path');
-    final url = Uri.parse('$baseUrl$path');
+    final url = Uri.parse('$baseUrl${path.endsWith('/') ? path : '$path/'}');
     final request = http.MultipartRequest('POST', url)
       ..headers.addAll(_headers(withAuth: true, multipart: true))
       ..files.add(await http.MultipartFile.fromPath(fileFieldName, filePath));
@@ -189,7 +189,7 @@ class ApiClient {
   ) async {
     await _ensureInitialized();
     debugPrint('📤 uploadFileWithFieldName: $filePath → $path');
-    final url = Uri.parse('$baseUrl$path');
+    final url = Uri.parse('$baseUrl${path.endsWith('/') ? path : '$path/'}');
     final request = http.MultipartRequest('POST', url)
       ..headers.addAll(_headers(withAuth: true, multipart: true))
       ..files.add(await http.MultipartFile.fromPath(fieldName, filePath));
