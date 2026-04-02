@@ -16,6 +16,7 @@ from django.db.models import Sum, Q, DecimalField
 from django.shortcuts import get_object_or_404
 import json
 import logging
+from rest_framework.authentication import TokenAuthentication  # 🔺 ADD AT TOP (only once)
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,9 @@ from django.http import HttpResponse
 from django.db.models import Sum
 from rest_framework.decorators import api_view, permission_classes
 from django.utils import timezone
+from coaches.models import CoachProfile
+from organizations.models import Branch, Batch
+from accounts.models import StudentProfile
 
 from accounts.models import StudentProfile
 from payments .models import FeeTransaction
@@ -38,7 +42,7 @@ from .serializers import StudentFeeSerializer
 
 class DashboardStatsView(APIView):
     permission_classes = [IsAuthenticated]
-
+    authentication_classes = [TokenAuthentication]  # ✅ ADD THIS
     def get(self, request):
         # Filter by the logged-in admin's organization
         org = request.user.academy_admin_profile.organization
@@ -54,16 +58,34 @@ class DashboardStatsView(APIView):
 @permission_classes([IsAuthenticated])
 def dashboard_stats(request):
     try:
-        org = request.user.academy_admin_profile.organization
-        return Response({
-            'total_students': StudentProfile.objects.filter(organization=org).count(),
-            'total_coaches': CoachProfile.objects.filter(organization=org).count(),
-            'total_branches': Branch.objects.filter(organization=org).count(),
-            'total_batches': Batch.objects.filter(organization=org).count(),
-        }, status=200)
-    except Exception as e:
-        return Response({'error': str(e)}, status=500)
+        organization = request.user.academy_admin_profile.organization
 
+        total_students = StudentProfile.objects.filter(
+            organization=organization
+        ).count()
+
+        total_coaches = CoachProfile.objects.filter(
+            organization=organization
+        ).count()
+
+        total_branches = Branch.objects.filter(
+            organization=organization
+        ).count()
+
+        total_batches = Batch.objects.filter(
+            branch__organization=organization
+        ).count()
+
+        return Response({
+            "total_students": total_students,
+            "total_coaches": total_coaches,
+            "total_branches": total_branches,
+            "total_batches": total_batches,
+        })
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=400)
+    
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def student_payment_history(request):
@@ -81,7 +103,7 @@ def dummy_view(request):
 
 class BatchFinancialsSummaryView(APIView):
     permission_classes = [IsAuthenticated]
-
+    authentication_classes = [TokenAuthentication]  # ✅ ADD HERE
     def get(self, request):
         branch_id = request.query_params.get('branch')
         sport_id = request.query_params.get('sport')
@@ -530,18 +552,28 @@ class StudentFinancialsView(generics.RetrieveAPIView):
         return {'total_paid': total_paid, 'total_due': total_due}
 
 class StudentListView(generics.ListAPIView):
-    """
-    API endpoint to list all students for the logged-in academy admin.
-    """
     serializer_class = StudentListSerializer
     permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]  # ✅ ADD HERE
 
-    def get_queryset(self):
-        if hasattr(self.request.user, 'academy_admin_profile'):
-            organization = self.request.user.academy_admin_profile.organization
-            return StudentProfile.objects.filter(organization=organization).order_by('first_name', 'last_name')
-        return StudentProfile.objects.none()
+def get_queryset(self):
+    user = self.request.user
 
+    print("👤 USER:", user)
+    print("🔐 AUTH:", user.is_authenticated)
+
+    try:
+        org = user.academy_admin_profile.organization
+        print("🏢 ORG:", org)
+    except Exception as e:
+        print("❌ ERROR:", str(e))
+        raise e  # 🔥 force crash to see real error
+
+    queryset = Enrollment.objects.filter(
+        organization=org
+    ).select_related('student', 'batch', 'batch__branch')
+
+    return queryset
 
 # Student-specific views for student dashboard
 class StudentDashboardView(APIView):
@@ -550,7 +582,7 @@ class StudentDashboardView(APIView):
     Returns enrollment details, attendance summary, and payment information.
     """
     permission_classes = [IsAuthenticated]
-
+    authentication_classes = [TokenAuthentication]  # ✅ ADD HERE
     def get(self, request):
         # Ensure user is a student
         if not hasattr(request.user, 'student_profile'):

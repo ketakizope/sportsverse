@@ -6,22 +6,31 @@ class StudentApi {
   static const String _basePath = '/api/student';
 
   // Get student dashboard data
-  static Future<StudentDashboardData> getDashboardData() async {
-    try {
-      final response = await apiClient.get('$_basePath/dashboard/');
-      
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return StudentDashboardData.fromJson(data);
-      } else {
-        throw Exception('Failed to load dashboard data: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Error loading dashboard data: $e');
-    }
-  }
+ static Future<StudentDashboardData> getDashboardData() async {
+  try {
+    final token = apiClient.getToken();
 
-  // Get student enrollments
+    if (token == null) {
+      print("⚠️ No token, skipping dashboard API");
+      throw Exception("NO_TOKEN");
+    }
+
+    final response = await apiClient.get('$_basePath/dashboard/');
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return StudentDashboardData.fromJson(data);
+    } else if (response.statusCode == 401) {
+      print("⚠️ Unauthorized - token invalid/expired");
+      throw Exception("UNAUTHORIZED");
+    } else {
+      throw Exception('Failed: ${response.statusCode}');
+    }
+  } catch (e) {
+    print("Dashboard API error: $e");
+    rethrow;
+  }
+}  // Get student enrollments
   static Future<List<StudentEnrollment>> getEnrollments({
     String? status,
     int? batchId,

@@ -10,9 +10,10 @@ class BranchApi {
   BranchApi(this.apiClient);
 
   /// Get all branches for the logged-in academy admin
-  Future<List<Branch>> getBranches() async {
+Future<List<Branch>> getBranches() async {
+    // REVERTED PATH: Your server uses 'organizations'
     final response = await apiClient.get(
-      '/api/organizations/branches/',
+      '/api/organizations/branches/', 
       includeAuth: true,
     );
 
@@ -20,11 +21,9 @@ class BranchApi {
       final List<dynamic> branchesJson = json.decode(response.body);
       return branchesJson.map((json) => Branch.fromJson(json)).toList();
     } else {
-      final errorData = json.decode(response.body);
-      throw Exception(errorData['detail'] ?? 'Failed to load branches');
+      throw Exception('Failed to load branches: ${response.statusCode}');
     }
   }
-
   /// Create a new branch
   Future<Branch> createBranch({
     required String name,
@@ -38,7 +37,7 @@ class BranchApi {
     };
 
     final response = await apiClient.post(
-      '/api/organizations/branches/',
+      '/api/accounts/branches/',
       branchData,
       includeAuth: true,
     );
@@ -75,7 +74,7 @@ class BranchApi {
     };
 
     final response = await apiClient.put(
-      '/api/organizations/branches/$branchId/',
+      '/api/accounts/branches/$branchId/',
       branchData,
       includeAuth: true,
     );
@@ -85,7 +84,6 @@ class BranchApi {
     } else {
       final errorData = json.decode(response.body);
 
-      // Handle validation errors
       if (errorData.containsKey('name')) {
         throw Exception('Name: ${errorData['name'].join(', ')}');
       } else if (errorData.containsKey('address')) {
@@ -101,20 +99,24 @@ class BranchApi {
   /// Delete a branch
   Future<void> deleteBranch(int branchId) async {
     final response = await apiClient.delete(
-      '/api/organizations/branches/$branchId/',
+      '/api/accounts/branches/$branchId/',
       includeAuth: true,
     );
 
     if (response.statusCode != 204) {
-      final errorData = json.decode(response.body);
-      throw Exception(errorData['detail'] ?? 'Failed to delete branch');
+      try {
+        final errorData = json.decode(response.body);
+        throw Exception(errorData['detail'] ?? 'Failed to delete branch');
+      } catch (_) {
+        throw Exception('Failed to delete branch');
+      }
     }
   }
 
   /// Get a specific branch
   Future<Branch> getBranch(int branchId) async {
     final response = await apiClient.get(
-      '/api/organizations/branches/$branchId/',
+      '/api/accounts/branches/$branchId/',
       includeAuth: true,
     );
 

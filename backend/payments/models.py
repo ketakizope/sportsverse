@@ -1,3 +1,5 @@
+#payments/models.py
+
 import logging
 from datetime import date as date_type
 
@@ -22,11 +24,18 @@ class FeeTransaction(models.Model):
 
     due_date = models.DateField(null=True, blank=True)
     is_paid = models.BooleanField(default=False)
+    PAYMENT_METHOD_CHOICES = [
+    ('cash', 'Cash'),
+    ('upi', 'UPI'),
+    ('card', 'Card'),
+    ('netbanking', 'Net Banking'),
+]
+
     payment_method = models.CharField(
-        max_length=50,
-        choices=[('Cash', 'Cash'), ('Online', 'Online')],
-        default='Cash',
-    )
+    max_length=20,
+    choices=PAYMENT_METHOD_CHOICES,
+    default='cash',
+)
     receipt_number = models.CharField(max_length=100, unique=True, blank=True, null=True)
 
     # Tracks when fee was actually collected (separate from transaction creation date)
@@ -54,3 +63,13 @@ class CoachSalaryTransaction(models.Model):
 
     def __str__(self):
         return f"Salary for {self.coach} — {self.payment_period}"
+    
+class GeneralExpense(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='general_expenses')
+    title = models.CharField(max_length=255, help_text="e.g., Rent, Electricity, Equipment")
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    date = models.DateField(default=date_type.today)
+    category = models.CharField(max_length=100, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.title} - {self.amount} ({self.organization.academy_name})"

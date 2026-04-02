@@ -1,7 +1,11 @@
 # setup_sports.py - Initial sports data setup
 
 from organizations.models import Sport
+import os
+import django
 
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
+django.setup()
 # Create sports if they don't exist
 sports_data = [
     {"name": "Cricket", "description": "Cricket training and coaching"},

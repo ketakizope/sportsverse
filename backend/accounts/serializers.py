@@ -28,15 +28,50 @@ class StudentFinancialsSerializer(serializers.Serializer):
     total_paid = serializers.DecimalField(max_digits=10, decimal_places=2)
     total_due = serializers.DecimalField(max_digits=10, decimal_places=2)
 
+
+
+
 class StudentListSerializer(serializers.ModelSerializer):
-    """
-    Serializer for listing students in the academy.
-    """
-    full_name = serializers.CharField(source='get_full_name', read_only=True)
+    student_name = serializers.SerializerMethodField()
+    student_last_name = serializers.SerializerMethodField()
+    batch_name = serializers.SerializerMethodField()
+    branch_name = serializers.SerializerMethodField()
+    is_active = serializers.SerializerMethodField()
+    progress_display = serializers.SerializerMethodField()
 
     class Meta:
         model = StudentProfile
-        fields = ['id', 'full_name']
+        fields = [
+            'id',
+            'student_name',
+            'student_last_name',
+            'batch_name',
+            'branch_name',
+            'is_active',
+            'progress_display'
+        ]
+
+    def get_student_name(self, obj):
+        if obj.user:
+            return obj.user.first_name
+        return obj.first_name
+
+    def get_student_last_name(self, obj):
+        if obj.user:
+            return obj.user.last_name
+        return obj.last_name
+
+    def get_batch_name(self, obj):
+        return "N/A"
+
+    def get_branch_name(self, obj):
+        return obj.organization.academy_name if obj.organization else "N/A"
+
+    def get_is_active(self, obj):
+        return True
+
+    def get_progress_display(self, obj):
+        return "0%"
 
 class RegisterAcademySerializer(serializers.Serializer):
     """

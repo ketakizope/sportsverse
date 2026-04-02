@@ -2,8 +2,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart' as dio_pkg;
-import 'package:sportsverse_app/api/api_client.dart'; // Ensure this points to your ApiClient
-import 'dart:convert'; // Add this line
+import 'package:sportsverse_app/api/api_client.dart'; 
+import 'dart:convert';
 
 class PlayerReportScreen extends StatefulWidget {
   const PlayerReportScreen({super.key});
@@ -15,7 +15,6 @@ class PlayerReportScreen extends StatefulWidget {
 class _PlayerReportScreenState extends State<PlayerReportScreen> {
   final TextEditingController _titleController = TextEditingController();
   
-  // Web-friendly file variables
   PlatformFile? _selectedFile;
   Uint8List? _fileBytes;
 
@@ -36,10 +35,6 @@ class _PlayerReportScreenState extends State<PlayerReportScreen> {
 
   // --- API LOGIC ---
 
-// 1. Ensure these imports are at the TOP
-
-
-// 2. Update the fetch methods to ensure the state updates correctly
   Future<void> _fetchBranches() async {
     try {
       final response = await apiClient.get('/api/organizations/branches/');
@@ -48,7 +43,6 @@ class _PlayerReportScreenState extends State<PlayerReportScreen> {
         setState(() {
           _branches = data;
         });
-        print("✅ Branches loaded: ${_branches.length}");
       }
     } catch (e) {
       print("❌ Branch Fetch Failed: $e");
@@ -62,8 +56,8 @@ class _PlayerReportScreenState extends State<PlayerReportScreen> {
         final List<dynamic> data = jsonDecode(response.body);
         setState(() {
           _batches = data;
-          _selectedBatch = null; // Reset child dropdown
-          _students = []; // Clear students
+          _selectedBatch = null;
+          _students = [];
         });
       }
     } catch (e) {
@@ -78,7 +72,7 @@ class _PlayerReportScreenState extends State<PlayerReportScreen> {
         final List<dynamic> data = jsonDecode(response.body);
         setState(() {
           _students = data;
-          _selectedStudentIds = []; // Reset selections
+          _selectedStudentIds = [];
         });
       }
     } catch (e) {
@@ -95,7 +89,7 @@ class _PlayerReportScreenState extends State<PlayerReportScreen> {
     if (result != null) {
       setState(() {
         _selectedFile = result.files.first;
-        _fileBytes = result.files.first.bytes; // Crucial for Web
+        _fileBytes = result.files.first.bytes;
       });
     }
   }
@@ -112,44 +106,68 @@ class _PlayerReportScreenState extends State<PlayerReportScreen> {
 
     try {
       final dio = dio_pkg.Dio();
-      // Use 127.0.0.1 for Chrome consistency
-      String uploadUrl = "http://127.0.0.1:8000/api/reports/upload/";
+      final String? token = apiClient.getToken();
+      String uploadUrl = "${ApiClient.baseUrl}/api/reports/upload/";
 
-      dio_pkg.FormData formData = dio_pkg.FormData.fromMap({
+      // Preparing the form data
+      // Note: We send student_ids as a list. If Django fails, try .join(',')
+      Map<String, dynamic> body = {
         "title": _titleController.text,
         "branch": _selectedBranch,
         "batch": _selectedBatch,
-        "student_ids": _selectedStudentIds.join(','),
+        "student_ids": _selectedStudentIds, 
         "report_file": dio_pkg.MultipartFile.fromBytes(
           _fileBytes!,
           filename: _selectedFile!.name,
         ),
-      });
+      };
 
-      final response = await dio.post(uploadUrl, data: formData);
+      dio_pkg.FormData formData = dio_pkg.FormData.fromMap(body);
+
+      final response = await dio.post(
+        uploadUrl, 
+        data: formData,
+        options: dio_pkg.Options(
+          headers: {
+            "Authorization": "Token $token",
+            "Accept": "application/json",
+          },
+        ),
+      );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Report Uploaded Successfully!")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Report Pushed to Student Portals!"), backgroundColor: Colors.green)
+        );
         _resetForm();
       }
+    } on dio_pkg.DioException catch (e) {
+      // Improved error logging to see exactly what Django is rejecting
+      final serverMessage = e.response?.data ?? e.message;
+      print("❌ Server Error Detail: $serverMessage");
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Upload Failed: $serverMessage"), 
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        )
+      );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Upload Failed: $e")));
+      print("❌ Unexpected Error: $e");
     } finally {
-      setState(() => _isUploading = false);
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
-void _resetForm() {
+  void _resetForm() {
     setState(() {
       _titleController.clear();
       _selectedFile = null;
       _fileBytes = null;
       _selectedStudentIds = [];
-      // _showReport = false;  <-- DELETE THIS LINE
     });
   }
-
-  // --- UI COMPONENTS ---
 
   @override
   Widget build(BuildContext context) {
@@ -173,7 +191,7 @@ void _resetForm() {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF137A74), width: 1.5),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
       ),
       child: Column(
         children: [
@@ -263,7 +281,7 @@ void _resetForm() {
             Icon(Icons.attach_file, color: Colors.grey[600]),
             const SizedBox(width: 8),
             Text(_selectedFile == null ? "Choose PDF or Image" : _selectedFile!.name,
-                style: TextStyle(color: _selectedFile == null ? Colors.grey : Colors.black)),
+                style: TextStyle(color: _selectedFile == null ? Colors.grey : Colors.black, overflow: TextOverflow.ellipsis)),
           ],
         ),
       ),

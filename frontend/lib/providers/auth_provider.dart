@@ -4,6 +4,7 @@
 // token validation on app start via /api/accounts/me/.
 
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:sportsverse_app/api/api_client.dart';
 import 'package:sportsverse_app/api/auth_api.dart';
@@ -11,20 +12,25 @@ import 'package:sportsverse_app/models/user.dart';
 
 class AuthProvider with ChangeNotifier {
   String? _token;
+  String? get accessToken => _token;
   User? _currentUser;
   ProfileDetails? _profileDetails;
   bool _mustChangePassword = false;
-  bool _isLoading = false;
+  bool _isLoading = true;
   String? _errorMessage;
 
   // ── Getters ───────────────────────────────────────────────────────────────
   User? get currentUser => _currentUser;
-  String? get token => _token;
+  String? get token=> _token;
   ProfileDetails? get profileDetails => _profileDetails;
   bool get mustChangePassword => _mustChangePassword;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
+bool get isAuthenticated => _token != null && _currentUser != null;
+
+bool _isInitialized = false;
+bool get isInitialized => _isInitialized;
   // ── Token validation on app start ─────────────────────────────────────────
 
   /// Called once in _SportsVerseAppState.initState().
@@ -73,6 +79,8 @@ class AuthProvider with ChangeNotifier {
     }
 
     _isLoading = false;
+    _isInitialized = true; // ✅ ADD THIS
+
     notifyListeners();
   }
 
@@ -90,6 +98,8 @@ class AuthProvider with ChangeNotifier {
       _currentUser = authResponse.user;
       _token = authResponse.token;
       _profileDetails = authResponse.profileDetails;
+      apiClient.setToken(authResponse.token); // ✅ ADD THIS
+
       _mustChangePassword = authResponse.mustChangePassword;
       debugPrint('✅ AuthProvider: login OK for ${authResponse.user.username}');
     } catch (e) {

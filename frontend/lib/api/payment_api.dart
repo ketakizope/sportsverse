@@ -1,4 +1,5 @@
 import 'dart:convert'; // Required for jsonDecode
+import 'package:flutter/foundation.dart'; // Required for debugPrint
 import 'package:sportsverse_app/api/api_client.dart';
 
 class PaymentApi {
@@ -14,8 +15,6 @@ class PaymentApi {
     required String batchId,
   }) async {
     try {
-      // Added '/api' prefix and ensured trailing slash '/' before query parameters
-      // URL: /api/accounts/batch-financials/?branch=X&sport=Y&batch=Z
       final String url = '/api/accounts/batch-financials/?branch=$branchId&sport=$sportId&batch=$batchId';
       
       print("📡 Requesting Financials: $url");
@@ -25,7 +24,6 @@ class PaymentApi {
       print("📥 Response Status: ${response.statusCode}");
 
       if (response.statusCode == 200) {
-        // Checking if body is a String or already a Map (depends on your ApiClient implementation)
         final dynamic responseData = response.body;
         
         if (responseData is String) {
@@ -61,6 +59,84 @@ class PaymentApi {
       return response.statusCode == 201 || response.statusCode == 200;
     } catch (e) {
       print("⚠️ Error recording payment: $e");
+      return false;
+    }
+  }
+
+  /// EXISTING: Organization analytics (OLD - keep it, don't delete)
+  Future<List<dynamic>?> getOrganizationAnalytics({required String period}) async {
+    try {
+      final String url = '/api/payments/analytics/financials/?period=$period';
+      
+      debugPrint("📡 Requesting Chart Data: $url");
+
+      final response = await apiClient.get(url);
+
+      if (response.statusCode == 200) {
+        final dynamic responseData = response.body;
+        
+        if (responseData is String) {
+          return jsonDecode(responseData);
+        } else {
+          return responseData as List<dynamic>;
+        }
+      } else {
+        debugPrint("❌ Analytics Failed. Status: ${response.statusCode}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("⚠️ Analytics Error: $e");
+      return null;
+    }
+  }
+
+  /// 🆕 NEW CLEAN DASHBOARD ANALYTICS (THIS IS WHAT YOU USE NOW)
+  Future<Map<String, dynamic>> getDashboardAnalytics() async {
+    try {
+      final String url = '/api/payments/dashboard/analytics/';
+      
+      debugPrint("📡 Requesting Dashboard Analytics: $url");
+
+      final response = await apiClient.get(url);
+
+      if (response.statusCode == 200) {
+        final dynamic responseData = response.body;
+
+        if (responseData is String) {
+          return jsonDecode(responseData);
+        } else {
+          return responseData as Map<String, dynamic>;
+        }
+      } else {
+        debugPrint("❌ Dashboard Analytics Failed. Status: ${response.statusCode}");
+        throw Exception('Failed to load dashboard analytics');
+      }
+    } catch (e) {
+      debugPrint("⚠️ Dashboard Analytics Error: $e");
+      throw Exception(e);
+    }
+  }
+
+  /// NEW: Adds a general expense (Rent, Electricity, etc.) to the database.
+  Future<bool> addGeneralExpense({
+    required String title,
+    required double amount,
+    required String category,
+    required String date, // Format: YYYY-MM-DD
+  }) async {
+    try {
+      final response = await apiClient.post(
+        '/api/payments/expenses/', 
+        {
+          'title': title,
+          'amount': amount,
+          'category': category,
+          'date': date,
+        },
+      );
+      return response.statusCode == 201 || response.statusCode == 200;
+    } catch (e) {
+      debugPrint("⚠️ Error adding expense: $e");
       return false;
     }
   }

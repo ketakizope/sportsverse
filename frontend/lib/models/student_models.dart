@@ -41,31 +41,50 @@ class StudentEnrollment {
     required this.organizationName,
   });
 
-  factory StudentEnrollment.fromJson(Map<String, dynamic> json) {
-    return StudentEnrollment(
-      id: json['id'] ?? 0,
-      studentId: json['student'] ?? 0,
-      batchId: json['batch'] ?? 0,
-      enrollmentType: json['enrollment_type'] ?? '',
-      startDate: json['start_date'] != null ? DateTime.parse(json['start_date']) : null,
-      endDate: json['end_date'] != null ? DateTime.parse(json['end_date']) : null,
-      totalSessions: json['total_sessions'],
-      sessionsAttended: json['sessions_attended'] ?? 0,
-      isActive: json['is_active'] ?? false,
-      enrollmentStarted: json['enrollment_started'] ?? false,
-      dateEnrolled: DateTime.parse(json['date_enrolled']),
-      dateFirstAttendance: json['date_first_attendance'] != null 
-          ? DateTime.parse(json['date_first_attendance']) 
-          : null,
-      enrollmentStatus: json['enrollment_status'] ?? '',
-      progressDisplay: json['progress_display'] ?? '',
-      studentName: json['student_name'] ?? '',
-      studentLastName: json['student_last_name'] ?? '',
-      batchName: json['batch_name'] ?? '',
-      branchName: json['branch_name'] ?? '',
-      organizationName: json['organization_name'] ?? '',
-    );
-  }
+factory StudentEnrollment.fromJson(Map<String, dynamic> json) {
+  return StudentEnrollment(
+    id: json['id'] ?? 0,
+    studentId: json['student'] ?? 0,
+    batchId: json['batch'] ?? 0,
+
+    enrollmentType: json['enrollment_type'] ?? '',
+
+    startDate: json['start_date'] != null
+        ? DateTime.tryParse(json['start_date'])
+        : null,
+
+    endDate: json['end_date'] != null
+        ? DateTime.tryParse(json['end_date'])
+        : null,
+
+    totalSessions: json['total_sessions'],
+
+    sessionsAttended: json['sessions_attended'] ?? 0,
+    isActive: json['is_active'] ?? false,
+    enrollmentStarted: json['enrollment_started'] ?? false,
+
+    // 🔥 FIX CRASH HERE
+    dateEnrolled: json['date_enrolled'] != null
+        ? DateTime.tryParse(json['date_enrolled']) ?? DateTime.now()
+        : DateTime.now(),
+
+    dateFirstAttendance: json['date_first_attendance'] != null
+        ? DateTime.tryParse(json['date_first_attendance'])
+        : null,
+
+    enrollmentStatus: json['enrollment_status'] ?? '',
+
+    // ✅ MATCH BACKEND KEYS
+    progressDisplay: json['progress_display'] ?? '0%',
+
+    studentName: json['student_name'] ?? '',
+    studentLastName: json['student_last_name'] ?? '',
+
+    batchName: json['batch_name'] ?? 'N/A',
+    branchName: json['branch_name'] ?? 'N/A',
+    organizationName: json['organization_name'] ?? '',
+  );
+}
 
   Map<String, dynamic> toJson() {
     return {

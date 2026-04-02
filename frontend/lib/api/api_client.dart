@@ -60,16 +60,28 @@ class ApiClient {
 
   // ── Headers ───────────────────────────────────────────────────────────────
 
-  Map<String, String> _headers({
-    bool withAuth = true,
-    bool multipart = false,
-  }) {
-    final h = <String, String>{};
-    if (!multipart) h['Content-Type'] = 'application/json';
-    if (withAuth && _token != null) h['Authorization'] = 'Token $_token';
-    return h;
+Map<String, String> _headers({
+  bool withAuth = true,
+  bool multipart = false,
+}) {
+  final h = <String, String>{};
+
+  if (!multipart) {
+    h['Content-Type'] = 'application/json';
   }
 
+  // 👉 ADD THIS PRINT
+  print("TOKEN VALUE: $_token");
+
+  if (withAuth && _token != null) {
+    h['Authorization'] = 'Token $_token';
+  }
+
+  // 👉 ADD THIS PRINT
+  print("HEADERS BEING SENT: $h");
+
+  return h;
+}
   // ── Error / timeout helpers ───────────────────────────────────────────────
 
   /// Wraps a future in a human-readable timeout exception.
@@ -196,6 +208,8 @@ class ApiClient {
     final streamed = await _withTimeout(request.send());
     return http.Response.fromStream(streamed);
   }
+
+  
 }
 
 /// Global singleton — all API classes share this instance.

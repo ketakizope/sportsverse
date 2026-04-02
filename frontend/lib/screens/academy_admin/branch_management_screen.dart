@@ -16,6 +16,10 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
   bool isLoading = true;
   String? errorMessage;
 
+  // Theme Colors to match Dashboard
+  static const Color sidebarDarkGreen = Color(0xFF1B3D2F);
+  static const Color brandTeal = Color(0xFF00796B);
+
   @override
   void initState() {
     super.initState();
@@ -29,12 +33,17 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
     });
 
     try {
+      debugPrint("📡 Fetching branches...");
       final loadedBranches = await branchApi.getBranches();
+      
+      debugPrint("✅ Branches loaded: ${loadedBranches.length}");
+      
       setState(() {
         branches = loadedBranches;
         isLoading = false;
       });
     } catch (e) {
+      debugPrint("❌ Branch Load Error: $e");
       setState(() {
         errorMessage = e.toString();
         isLoading = false;
@@ -43,7 +52,6 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
   }
 
   Future<void> _deleteBranch(Branch branch) async {
-    // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -70,7 +78,7 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Branch deleted successfully')),
           );
-          _loadBranches(); // Refresh the list
+          _loadBranches();
         }
       } catch (e) {
         if (mounted) {
@@ -94,7 +102,7 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
     );
 
     if (result == true) {
-      _loadBranches(); // Refresh the list if branch was saved
+      _loadBranches();
     }
   }
 
@@ -103,16 +111,18 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Manage Branches'),
-        backgroundColor: Colors.blue,
+        backgroundColor: sidebarDarkGreen,
         foregroundColor: Colors.white,
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: brandTeal))
           : errorMessage != null
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                  const SizedBox(height: 16),
                   Text(
                     'Error: $errorMessage',
                     style: const TextStyle(color: Colors.red),
@@ -121,7 +131,8 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: _loadBranches,
-                    child: const Text('Retry'),
+                    style: ElevatedButton.styleFrom(backgroundColor: brandTeal),
+                    child: const Text('Retry', style: TextStyle(color: Colors.white)),
                   ),
                 ],
               ),
@@ -153,14 +164,13 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                 itemBuilder: (context, index) {
                   final branch = branches[index];
                   return Card(
+                    elevation: 2,
                     margin: const EdgeInsets.only(bottom: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.blue,
-                        child: Icon(
-                          Icons.business,
-                          color: Colors.white,
-                        ),
+                      leading: const CircleAvatar(
+                        backgroundColor: brandTeal,
+                        child: Icon(Icons.business, color: Colors.white),
                       ),
                       title: Text(
                         branch.name,
@@ -168,9 +178,7 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
                       ),
                       subtitle: Text(
                         'Address: ${branch.address}',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(color: Colors.grey[600]),
                       ),
                       trailing: PopupMenuButton<String>(
                         onSelected: (value) {
@@ -214,16 +222,15 @@ class _BranchManagementScreenState extends State<BranchManagementScreen> {
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _navigateToAddEditBranch(),
-        backgroundColor: Colors.blue,
+        backgroundColor: brandTeal,
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
 }
 
-// Add/Edit Branch Screen
 class AddEditBranchScreen extends StatefulWidget {
-  final Branch? branch; // null for add, non-null for edit
+  final Branch? branch;
 
   const AddEditBranchScreen({super.key, this.branch});
 
@@ -237,7 +244,6 @@ class _AddEditBranchScreenState extends State<AddEditBranchScreen> {
   final _addressController = TextEditingController();
 
   bool _isLoading = false;
-
   bool get isEditing => widget.branch != null;
 
   @override
@@ -246,7 +252,6 @@ class _AddEditBranchScreenState extends State<AddEditBranchScreen> {
     if (isEditing) {
       _nameController.text = widget.branch!.name;
       _addressController.text = widget.branch!.address;
-
     }
   }
 
@@ -291,7 +296,7 @@ class _AddEditBranchScreenState extends State<AddEditBranchScreen> {
       }
 
       if (mounted) {
-        Navigator.pop(context, true); // Return true to indicate success
+        Navigator.pop(context, true);
       }
     } catch (e) {
       setState(() {
@@ -310,7 +315,7 @@ class _AddEditBranchScreenState extends State<AddEditBranchScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Edit Branch' : 'Add Branch'),
-        backgroundColor: Colors.blue,
+        backgroundColor: const Color(0xFF1B3D2F),
         foregroundColor: Colors.white,
       ),
       body: Form(
@@ -325,18 +330,15 @@ class _AddEditBranchScreenState extends State<AddEditBranchScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Branch Name *',
                   hintText: 'Enter branch/center name',
-                  prefixIcon: Icon(Icons.store),
+                  prefixIcon: Icon(Icons.store, color: Color(0xFF00796B)),
+                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF00796B))),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Branch name is required';
                   }
-                  if (value.trim().length < 2) {
-                    return 'Branch name must be at least 2 characters';
-                  }
                   return null;
                 },
-                textCapitalization: TextCapitalization.words,
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -344,48 +346,28 @@ class _AddEditBranchScreenState extends State<AddEditBranchScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Address *',
                   hintText: 'Enter full address',
-                  prefixIcon: Icon(Icons.location_on),
+                  prefixIcon: Icon(Icons.location_on, color: Color(0xFF00796B)),
+                  focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF00796B))),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Address is required';
                   }
-                  if (value.trim().length < 10) {
-                    return 'Please enter a complete address';
-                  }
                   return null;
                 },
                 maxLines: 3,
-                textCapitalization: TextCapitalization.sentences,
               ),
-              const SizedBox(height: 16),
-
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _isLoading ? null : _saveBranch,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
+                  backgroundColor: const Color(0xFF00796B),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 child: _isLoading
-                    ? const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Text('Saving...'),
-                        ],
-                      )
+                    ? const CircularProgressIndicator(color: Colors.white)
                     : Text(isEditing ? 'Update Branch' : 'Create Branch'),
               ),
             ],

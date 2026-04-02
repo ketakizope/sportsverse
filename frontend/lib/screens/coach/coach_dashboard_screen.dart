@@ -26,22 +26,35 @@ class CoachDashboardScreen extends StatefulWidget {
 class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
   late Future<CoachDashboardData> _future;
 
-  @override
-  void initState() {
-    super.initState();
+@override
+void initState() {
+  super.initState();
+  _loadData();
+}
+
+void _loadData() {
+  _future = coachApi.getCoachDashboard();
+}
+
+// 📁 lib/screens/coach/coach_dashboard_screen.dart
+
+void _refresh() {
+  if (!mounted) return;   // ✅ CRITICAL FIX
+
+  setState(() {
     _future = coachApi.getCoachDashboard();
-  }
-
-  void _refresh() => setState(() {
-        _future = coachApi.getCoachDashboard();
-      });
-
+  });
+}
   // Navigation helpers
-  void _go(Widget screen) {
-    Navigator.pop(context); // close drawer
-    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
-  }
+// 📁 lib/screens/coach/coach_dashboard_screen.dart
 
+void _go(Widget screen) {
+  Navigator.pop(context);
+
+  if (!mounted) return;   // ✅ ADD THIS
+
+  Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+}
   void _logout() {
     Navigator.pop(context);
     Provider.of<AuthProvider>(context, listen: false).logout();
@@ -91,7 +104,11 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
               onRetry: _refresh,
             );
           }
-          final data = snapshot.data!;
+          if (!snapshot.hasData) {
+  return const Center(child: Text("No data"));
+}
+
+final data = snapshot.data!;
           return RefreshIndicator(
             onRefresh: () async => _refresh(),
             child: SingleChildScrollView(

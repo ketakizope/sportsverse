@@ -108,72 +108,99 @@ class _StudentPaymentScreenState extends State<StudentPaymentScreen> {
     }
   }
 
-  Future<void> _showPaymentDialog() async {
-    final s = _selectedStudentData!;
-    final TextEditingController amountController = TextEditingController();
-    amountController.text = ""; 
+Future<void> _showPaymentDialog() async {
+  final s = _selectedStudentData!;
+  final TextEditingController amountController = TextEditingController();
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Record Payment for ${s['first_name']}"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text("Policy: ${s['policy'] ?? s['payment_policy'] ?? 'N/A'}"),
-            const SizedBox(height: 10),
-            TextField(
-              controller: amountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: "Amount (₹)",
-                border: OutlineInputBorder(),
-              ),
+  String paymentMethod = "Cash"; // default
+  amountController.text = "";
+
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text("Record Payment for ${s['first_name']}"),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text("Policy: ${s['policy'] ?? s['payment_policy'] ?? 'N/A'}"),
+          const SizedBox(height: 10),
+
+          TextField(
+            controller: amountController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: "Amount (₹)",
+              border: OutlineInputBorder(),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("CANCEL")),
-          ElevatedButton(
-            onPressed: () async {
-              if (amountController.text.isEmpty) return;
-              
-              try {
-                // FIXED: Using positional arguments (URL, Body) for your ApiClient
-final response = await apiClient.post(
-  '/api/payments/collect-fee/',
-  {
-    'student_id': s['student_id'],
-    'enrollment_id': s['enrollment_id'],
-    'amount': amountController.text,
-    'payment_method': 'Cash',
-  },
-);
+          ),
 
-                if (response.statusCode == 200 || response.statusCode == 201) {
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Payment Recorded!")));
-                    _handleFetchBatchData(); // Refresh data
-                  }
-                } else {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: ${response.body}")));
-                  }
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Network Error: $e")));
-                }
-              }
+          const SizedBox(height: 12),
+
+          DropdownButtonFormField<String>(
+            value: paymentMethod,
+            decoration: const InputDecoration(
+              labelText: "Payment Method",
+              border: OutlineInputBorder(),
+            ),
+            items: const [
+              DropdownMenuItem(value: "Cash", child: Text("Cash")),
+              DropdownMenuItem(value: "Online", child: Text("UPI / Online")),
+            ],
+            onChanged: (value) {
+              paymentMethod = value!;
             },
-            child: const Text("CONFIRM"),
-          )
+          ),
         ],
       ),
-    );
-  }
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("CANCEL"),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            if (amountController.text.isEmpty) return;
 
+            try {
+              final response = await apiClient.post(
+                '/api/payments/collect-fee/',
+                {
+                  'student_id': s['student_id'],
+                  'enrollment_id': s['enrollment_id'],
+                  'amount': amountController.text,
+                  'payment_method': paymentMethod,
+                },
+              );
+
+              if (response.statusCode == 200 || response.statusCode == 201) {
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Payment Recorded!")),
+                  );
+                  _handleFetchBatchData();
+                }
+              } else {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Error: ${response.body}")),
+                  );
+                }
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Network Error: $e")),
+                );
+              }
+            }
+          },
+          child: const Text("CONFIRM"),
+        )
+      ],
+    ),
+  );
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -191,9 +218,19 @@ final response = await apiClient.post(
               children: [
                 _buildFilterSection(),
                 if (_studentFinancials.isNotEmpty) ...[
-                  const SizedBox(height: 20),
-                  _buildStudentDropdown(),
-                ],
+  const SizedBox(height: 20),
+  _buildStudentDropdown(),
+] else if (!_isFetchingReport && _selectedBranchId != null) ...[
+  const SizedBox(height: 20),
+  const Text(
+    "No student available",
+    style: TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.bold,
+      color: Colors.red,
+    ),
+  ),
+],
                 if (_selectedStudentData != null) ...[
                   const SizedBox(height: 20),
                   _buildStudentStatusCard(),

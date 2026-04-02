@@ -16,7 +16,12 @@ class _CoachAssignmentScreenState extends State<CoachAssignmentScreen> {
   List<Coach> coaches = [];
   List<Branch> branches = [];
   bool isLoading = true;
+  bool isSubmitting = false; // Prevents duplicate taps
   String? errorMessage;
+
+  // Theme Colors
+  static const Color sidebarDarkGreen = Color(0xFF1B3D2F);
+  static const Color brandTeal = Color(0xFF00796B);
 
   @override
   void initState() {
@@ -48,6 +53,8 @@ class _CoachAssignmentScreenState extends State<CoachAssignmentScreen> {
   }
 
   void _assignBranches(Coach coach) async {
+    if (isSubmitting) return; // Guard clause
+
     final selectedBranches = List<int>.from(coach.assignedBranches);
 
     final result = await showDialog<List<int>>(
@@ -62,32 +69,42 @@ class _CoachAssignmentScreenState extends State<CoachAssignmentScreen> {
     if (result != null) {
       try {
         setState(() {
-          isLoading = true;
+          isSubmitting = true;
         });
 
         await coachApi.assignBranches(coachId: coach.id, branchIds: result);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Branches assigned to ${coach.coachName} successfully',
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Branches updated for ${coach.coachName}'),
+              backgroundColor: Colors.green,
             ),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        _loadData(); // Refresh the data
+          );
+          _loadData(); // Refresh the list
+        }
       } catch (e) {
-        setState(() {
-          isLoading = false;
-        });
+        String errorMsg = e.toString();
+        
+        // Handle the Duplicate Entry error gracefully
+        if (errorMsg.contains('1062') || errorMsg.contains('Duplicate')) {
+          errorMsg = "This coach is already assigned to one of these branches.";
+        }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to assign branches: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMsg),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            isSubmitting = false;
+          });
+        }
       }
     }
   }
@@ -97,25 +114,22 @@ class _CoachAssignmentScreenState extends State<CoachAssignmentScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Coach Branch Assignment'),
-        backgroundColor: Colors.blue,
+        backgroundColor: sidebarDarkGreen,
         foregroundColor: Colors.white,
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: brandTeal))
           : errorMessage != null
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    'Error: $errorMessage',
-                    style: const TextStyle(color: Colors.red),
-                    textAlign: TextAlign.center,
-                  ),
+                  Text('Error: $errorMessage', style: const TextStyle(color: Colors.red)),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: _loadData,
-                    child: const Text('Retry'),
+                    style: ElevatedButton.styleFrom(backgroundColor: brandTeal),
+                    child: const Text('Retry', style: TextStyle(color: Colors.white)),
                   ),
                 ],
               ),
@@ -127,16 +141,7 @@ class _CoachAssignmentScreenState extends State<CoachAssignmentScreen> {
                 children: [
                   Icon(Icons.person_add, size: 64, color: Colors.grey),
                   SizedBox(height: 16),
-                  Text(
-                    'No coaches found',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Register coaches first to assign them to branches',
-                    style: TextStyle(color: Colors.grey),
-                    textAlign: TextAlign.center,
-                  ),
+                  Text('No coaches found', style: TextStyle(fontSize: 18, color: Colors.grey)),
                 ],
               ),
             )
@@ -148,67 +153,43 @@ class _CoachAssignmentScreenState extends State<CoachAssignmentScreen> {
                 itemBuilder: (context, index) {
                   final coach = coaches[index];
                   return Card(
+                    elevation: 2,
                     margin: const EdgeInsets.only(bottom: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     child: ListTile(
                       leading: const CircleAvatar(
-                        backgroundColor: Colors.blue,
+                        backgroundColor: brandTeal,
                         child: Icon(Icons.person, color: Colors.white),
                       ),
-                      title: Text(
-                        coach.coachName,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 4),
-                          if (coach.assignedBranchNames.isEmpty)
-                            const Text(
-                              'No branches assigned',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontStyle: FontStyle.italic,
+                      title: Text(coach.coachName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: coach.assignedBranchNames.isEmpty
+                            ? const Text('No branches assigned', style: TextStyle(fontStyle: FontStyle.italic))
+                            : Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
+                                children: coach.assignedBranchNames.map((name) {
+                                  return Chip(
+                                    label: Text(name, style: const TextStyle(fontSize: 11)),
+                                    backgroundColor: Colors.teal.shade50,
+                                    padding: EdgeInsets.zero,
+                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  );
+                                }).toList(),
                               ),
-                            )
-                          else
-                            Wrap(
-                              children: coach.assignedBranchNames.map((
-                                branchName,
-                              ) {
-                                return Container(
-                                  margin: const EdgeInsets.only(
-                                    right: 4,
-                                    bottom: 4,
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.shade100,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    branchName,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.blue.shade800,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
+                      ),
+                      trailing: isSubmitting 
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                        : ElevatedButton(
+                            onPressed: () => _assignBranches(coach),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: brandTeal,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
                             ),
-                        ],
-                      ),
-                      trailing: ElevatedButton(
-                        onPressed: () => _assignBranches(coach),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('Assign'),
-                      ),
-                      onTap: () => _assignBranches(coach),
+                            child: const Text('Assign'),
+                          ),
                     ),
                   );
                 },
@@ -251,59 +232,42 @@ class _BranchAssignmentDialogState extends State<BranchAssignmentDialog> {
         width: double.maxFinite,
         child: widget.branches.isEmpty
             ? const Text('No branches available')
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Select branches to assign:'),
-                  const SizedBox(height: 16),
-                  Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: widget.branches.length,
-                      itemBuilder: (context, index) {
-                        final branch = widget.branches[index];
-                        final isSelected = selectedBranches.contains(branch.id);
+            : ListView.builder(
+                shrinkWrap: true,
+                itemCount: widget.branches.length,
+                itemBuilder: (context, index) {
+                  final branch = widget.branches[index];
+                  final isSelected = selectedBranches.contains(branch.id);
 
-                        return CheckboxListTile(
-                          title: Text(branch.name),
-                          subtitle: Text(branch.address),
-                          value: isSelected,
-                          onChanged: branch.isActive
-                              ? (value) {
-                                  setState(() {
-                                    if (value == true) {
-                                      selectedBranches.add(branch.id);
-                                    } else {
-                                      selectedBranches.remove(branch.id);
-                                    }
-                                  });
-                                }
-                              : null,
-                          secondary: Icon(
-                            branch.isActive
-                                ? Icons.store
-                                : Icons.store_mall_directory_outlined,
-                            color: branch.isActive ? Colors.green : Colors.grey,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+                  return CheckboxListTile(
+                    activeColor: const Color(0xFF00796B),
+                    title: Text(branch.name),
+                    subtitle: Text(branch.address, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    value: isSelected,
+                    onChanged: branch.isActive
+                        ? (value) {
+                            setState(() {
+                              if (value == true) {
+                                selectedBranches.add(branch.id);
+                              } else {
+                                selectedBranches.remove(branch.id);
+                              }
+                            });
+                          }
+                        : null,
+                  );
+                },
               ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
         ),
         ElevatedButton(
           onPressed: () => Navigator.pop(context, selectedBranches.toList()),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-          ),
-          child: const Text('Assign'),
+          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00796B)),
+          child: const Text('Update Assignment', style: TextStyle(color: Colors.white)),
         ),
       ],
     );
