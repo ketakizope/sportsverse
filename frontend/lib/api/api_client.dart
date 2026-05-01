@@ -17,7 +17,7 @@ class ApiClient {
   // For Android Emulator, use --dart-define=API_BASE_URL=http://10.0.2.2:8000
   static const String baseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://192.168.102.211:8000/',
+  defaultValue: 'http://192.168.29.245:8000/',
 );
 
   static const Duration _kTimeout = Duration(seconds: 30);

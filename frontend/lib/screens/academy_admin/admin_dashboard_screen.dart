@@ -53,11 +53,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
   bool _isPaymentsExpanded = false;
   bool _isStaffExpanded = false;
   bool _isVideosExpanded = false;
-  bool _isReportsExpanded = false;
-
-  dynamic _analyticsData; 
+  
+  Map<String, dynamic>? _analyticsData;
   bool _isChartLoading = false;
-  late PaymentApi _paymentApi;
+  
+
+  Widget? _currentContent;
+  late final PaymentApi _paymentApi;
 
   @override
   void initState() {
@@ -125,6 +127,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
     );
 
     if (res.statusCode == 200 || res.statusCode == 201) {
+      if (!mounted) return;
       Navigator.pop(context);
       fetchExpenses();
     }
@@ -258,7 +261,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
                       children: [
                         if (isDesktop) _buildTopHeader(innerContext, authProvider, theme),
                         Expanded(
-                          child: FutureBuilder<Map<String, dynamic>>(
+                          child: _currentContent ?? FutureBuilder<Map<String, dynamic>>(
                             future: _fetchStats(),
                             builder: (context, snapshot) {
                               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -336,7 +339,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
                                                             leading: Container(
                                                               padding: const EdgeInsets.all(10),
                                                               decoration: BoxDecoration(
-                                                                color: theme.accent.withOpacity(0.2),
+                                                                color: theme.accent.withValues(alpha: 0.2),
                                                                 borderRadius: BorderRadius.circular(10),
                                                               ),
                                                               child: Icon(
@@ -405,7 +408,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
       crossAxisCount: crossAxisCount,
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-      childAspectRatio: maxWidth > 1200 ? 4 : 5,
+      childAspectRatio: maxWidth > 1200 ? 4 : 2.5,
       children: [
         _buildStatCardTop('₹${summary['total_income']}', 'Total Income', Icons.account_balance_wallet, theme.accent, theme),
         _buildStatCardTop('₹${summary['total_expense']}', 'Total Expenses', Icons.credit_card, theme.error, theme),
@@ -421,17 +424,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
         children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: color, size: 24)
           ),
           const SizedBox(width: 16),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(value, style: theme.display2),
-              Text(title, style: theme.caption.copyWith(color: theme.secondaryText)),
-            ]
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(value, style: theme.display2),
+                ),
+                Text(title, style: theme.caption.copyWith(color: theme.secondaryText)),
+              ]
+            ),
           ),
         ],
       ),
@@ -480,7 +490,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
                     : (_analyticsData == null)
                         ? Center(child: Text("No Analytics Data", style: theme.body))
                         : FinancialDashboardChart(
-                            analytics: _analyticsData,
+                            analytics: _analyticsData!,
                           ),
               ],
             ),
@@ -514,8 +524,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
         children: [
           const SizedBox(height: 40),
           _buildLogo(theme),
-          _sidebarItem(theme, Icons.dashboard, 'Dashboard', isSelected: true, onTap: () {
-            if (Scaffold.of(context).hasDrawer) Navigator.pop(context);
+          _sidebarItem(theme, Icons.dashboard, 'Dashboard', isSelected: _currentContent == null, onTap: () {
+            setState(() => _currentContent = null);
+            if (Scaffold.maybeOf(context)?.hasDrawer ?? false) Navigator.pop(context);
           }),
           
           _buildExpansionTile(
@@ -525,9 +536,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
             isExpanded: _isCoachesExpanded,
             onExpansionChanged: (val) => setState(() => _isCoachesExpanded = val),
             children: [
-              _sidebarSubItem(theme, context, 'Enrolled Coaches', Icons.view_list, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CoachListScreen()))),
-              _sidebarSubItem(theme, context, 'Enroll Coach', Icons.person_add, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CoachEnrollScreen()))),
-              _sidebarSubItem(theme, context, 'Assign Coach', Icons.assignment_ind, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AssignCoachScreen()))),
+              _sidebarSubItem(theme, context, 'Enrolled Coaches', Icons.view_list, () => setState(() => _currentContent = const CoachListScreen())),
+              _sidebarSubItem(theme, context, 'Enroll Coach', Icons.person_add, () => setState(() => _currentContent = const CoachEnrollScreen())),
+              _sidebarSubItem(theme, context, 'Assign Coach', Icons.assignment_ind, () => setState(() => _currentContent = const AssignCoachScreen())),
             ],
           ),
 
@@ -539,9 +550,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
             onExpansionChanged: (val) => setState(() => _isStudentsExpanded = val),
             children: [
               _sidebarSubItem(theme, context, 'View Students', Icons.visibility_outlined, () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeNotifierProvider(create: (context) => AdminProvider(), child: const ViewStudentsScreen())));
+                setState(() => _currentContent = ChangeNotifierProvider(create: (context) => AdminProvider(), child: const ViewStudentsScreen()));
               }),
-              _sidebarSubItem(theme, context, 'Enroll Student', Icons.add_circle_outline, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddStudentEnrollmentScreen()))),
+              _sidebarSubItem(theme, context, 'Enroll Student', Icons.add_circle_outline, () => setState(() => _currentContent = const AddStudentEnrollmentScreen())),
             ],
           ),
 
@@ -552,9 +563,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
             isExpanded: _isAttendanceExpanded,
             onExpansionChanged: (val) => setState(() => _isAttendanceExpanded = val),
             children: [
-              _sidebarSubItem(theme, context, 'Face Attendance', Icons.face, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminFaceAttendanceScreen()))),
-              _sidebarSubItem(theme, context, 'Mark Attendance', Icons.check_circle_outline, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MarkAttendanceScreen()))),
-              _sidebarSubItem(theme, context, 'View Attendance', Icons.calendar_month, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ViewAttendanceScreen()))),
+              _sidebarSubItem(theme, context, 'Face Attendance', Icons.face, () => setState(() => _currentContent = const AdminFaceAttendanceScreen())),
+              _sidebarSubItem(theme, context, 'Mark Attendance', Icons.check_circle_outline, () => setState(() => _currentContent = const MarkAttendanceScreen())),
+              _sidebarSubItem(theme, context, 'View Attendance', Icons.calendar_month, () => setState(() => _currentContent = const ViewAttendanceScreen())),
             ],
           ),
 
@@ -565,9 +576,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
             isExpanded: _isPaymentsExpanded,
             onExpansionChanged: (val) => setState(() => _isPaymentsExpanded = val),
             children: [
-              _sidebarSubItem(theme, context, 'Student Payments', Icons.monetization_on, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StudentPaymentScreen()))),
-              _sidebarSubItem(theme, context, 'Pay Salaries', Icons.account_balance_wallet, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaySalaryScreen()))),
-              _sidebarSubItem(theme, context, 'Salary History', Icons.history, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SalaryDetailsScreen()))),
+              _sidebarSubItem(theme, context, 'Student Payments', Icons.monetization_on, () => setState(() => _currentContent = const StudentPaymentScreen())),
+              _sidebarSubItem(theme, context, 'Pay Salaries', Icons.account_balance_wallet, () => setState(() => _currentContent = const PaySalaryScreen())),
+              _sidebarSubItem(theme, context, 'Salary History', Icons.history, () => setState(() => _currentContent = const SalaryDetailsScreen())),
             ],
           ),
 
@@ -578,8 +589,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
             isExpanded: _isStaffExpanded,
             onExpansionChanged: (val) => setState(() => _isStaffExpanded = val),
             children: [
-              _sidebarSubItem(theme, context, 'Branch Management', Icons.location_city, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BranchManagementScreen()))),
-              _sidebarSubItem(theme, context, 'Batch Management', Icons.groups, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BatchManagementScreen()))),
+              _sidebarSubItem(theme, context, 'Branch Management', Icons.location_city, () => setState(() => _currentContent = const BranchManagementScreen())),
+              _sidebarSubItem(theme, context, 'Batch Management', Icons.groups, () => setState(() => _currentContent = const BatchManagementScreen())),
             ],
           ),
 
@@ -590,8 +601,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
             isExpanded: _isVideosExpanded,
             onExpansionChanged: (val) => setState(() => _isVideosExpanded = val),
             children: [
-              _sidebarSubItem(theme, context, 'Send Video', Icons.send, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SendVideoScreen()))),
-              _sidebarSubItem(theme, context, 'Player Reports', Icons.assessment, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlayerReportScreen()))),
+              _sidebarSubItem(theme, context, 'Send Video', Icons.send, () => setState(() => _currentContent = const SendVideoScreen())),
+              _sidebarSubItem(theme, context, 'Player Reports', Icons.assessment, () => setState(() => _currentContent = const PlayerReportScreen())),
             ],
           ),
           
@@ -605,8 +616,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
 
   Widget _sidebarItem(EliteTheme theme, IconData icon, String label, {bool isSelected = false, VoidCallback? onTap}) {
     return ListTile(
-      leading: Icon(icon, color: isSelected ? theme.accent : theme.surfaceContainerLowest.withOpacity(0.6)),
-      title: Text(label, style: theme.heading.copyWith(color: isSelected ? theme.surfaceContainerLowest : theme.surfaceContainerLowest.withOpacity(0.6))),
+      leading: Icon(icon, color: isSelected ? theme.accent : theme.surfaceContainerLowest.withValues(alpha: 0.6)),
+      title: Text(label, style: theme.heading.copyWith(color: isSelected ? theme.surfaceContainerLowest : theme.surfaceContainerLowest.withValues(alpha: 0.6))),
       onTap: onTap,
     );
   }
@@ -615,7 +626,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
     return ListTile(
       contentPadding: const EdgeInsets.only(left: 50),
       leading: Icon(icon, color: theme.accent, size: 20),
-      title: Text(label, style: theme.body.copyWith(color: theme.surfaceContainerLowest.withOpacity(0.8))),
+      title: Text(label, style: theme.body.copyWith(color: theme.surfaceContainerLowest.withValues(alpha: 0.8))),
       onTap: () {
         if (Scaffold.maybeOf(context)?.hasDrawer ?? false) Navigator.pop(context);
         onTap();
@@ -626,27 +637,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
   Widget _buildExpansionTile({required EliteTheme theme, required String title, required IconData icon, required bool isExpanded, required Function(bool) onExpansionChanged, required List<Widget> children}) {
     return ExpansionTile(
       onExpansionChanged: onExpansionChanged,
-      leading: Icon(icon, color: theme.surfaceContainerLowest.withOpacity(0.6)),
-      title: Text(title, style: theme.heading.copyWith(color: theme.surfaceContainerLowest.withOpacity(0.6))),
-      trailing: Icon(isExpanded ? Icons.expand_less : Icons.expand_more, color: theme.surfaceContainerLowest.withOpacity(0.6)),
+      leading: Icon(icon, color: theme.surfaceContainerLowest.withValues(alpha: 0.6)),
+      title: Text(title, style: theme.heading.copyWith(color: theme.surfaceContainerLowest.withValues(alpha: 0.6))),
+      trailing: Icon(isExpanded ? Icons.expand_less : Icons.expand_more, color: theme.surfaceContainerLowest.withValues(alpha: 0.6)),
       children: children,
     );
   }
 
   Widget _buildManagementGrid(BuildContext context, double maxWidth, EliteTheme theme) {
-    int crossAxisCount = maxWidth > 1200 ? 4 : (maxWidth > 700 ? 2 : 1);
     final List<Map<String, dynamic>> actions = [
-      {'title': 'Add Student', 'icon': Icons.person_add_alt, 'color': theme.primary, 'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddStudentEnrollmentScreen()))},
-      {'title': 'Enroll Coach', 'icon': Icons.sports, 'color': theme.accent, 'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CoachEnrollScreen()))},
-      {'title': 'Manage Branches', 'icon': Icons.location_city, 'color': theme.primary, 'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BranchManagementScreen()))},
-      {'title': 'Manage Batches', 'icon': Icons.groups, 'color': theme.accent, 'onTap': () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BatchManagementScreen()))},
+      {'title': 'Add Student', 'icon': Icons.person_add_alt, 'color': theme.primary, 'onTap': () => setState(() => _currentContent = const AddStudentEnrollmentScreen())},
+      {'title': 'Enroll Coach', 'icon': Icons.sports, 'color': theme.accent, 'onTap': () => setState(() => _currentContent = const CoachEnrollScreen())},
+      {'title': 'Manage Branches', 'icon': Icons.location_city, 'color': theme.primary, 'onTap': () => setState(() => _currentContent = const BranchManagementScreen())},
+      {'title': 'Manage Batches', 'icon': Icons.groups, 'color': theme.accent, 'onTap': () => setState(() => _currentContent = const BatchManagementScreen())},
     ];
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: crossAxisCount, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 2.5),
-      itemCount: actions.length,
-      itemBuilder: (context, index) => _buildActionCard(actions[index], theme),
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: actions.map((action) => SizedBox(
+        width: maxWidth > 1200 ? (maxWidth - 48)/4 - 16 : (maxWidth > 700 ? (maxWidth - 16)/2 - 16 : maxWidth - 32),
+        child: _buildActionCard(action, theme),
+      )).toList(),
     );
   }
 
@@ -659,7 +670,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: action['color'].withOpacity(0.1),
+              color: action['color'].withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12)
             ),
             child: Icon(action['icon'], color: action['color'])
@@ -672,19 +683,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
   }
 
   Widget _buildStatsGrid(Map<String, dynamic> stats, bool isLoading, double maxWidth, EliteTheme theme) {
-    int crossAxisCount = maxWidth > 1200 ? 4 : (maxWidth > 600 ? 2 : 2);
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: crossAxisCount,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: maxWidth > 1200 ? 1.5 : 1.0,
+    final width = maxWidth > 1200 ? (maxWidth - 48)/4 - 16 : (maxWidth > 600 ? (maxWidth - 16)/2 - 16 : maxWidth - 32);
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
       children: [
-        _buildStatCard('Students', stats['total_students'].toString(), Icons.people, theme.primary, isLoading, theme),
-        _buildStatCard('Coaches', stats['total_coaches'].toString(), Icons.sports, theme.accent, isLoading, theme),
-        _buildStatCard('Branches', stats['total_branches'].toString(), Icons.location_on, theme.primary, isLoading, theme),
-        _buildStatCard('Batches', stats['total_batches'].toString(), Icons.class_, theme.accent, isLoading, theme),
+        SizedBox(width: width, child: _buildStatCard('Students', stats['total_students'].toString(), Icons.people, theme.primary, isLoading, theme)),
+        SizedBox(width: width, child: _buildStatCard('Coaches', stats['total_coaches'].toString(), Icons.sports, theme.accent, isLoading, theme)),
+        SizedBox(width: width, child: _buildStatCard('Branches', stats['total_branches'].toString(), Icons.location_on, theme.primary, isLoading, theme)),
+        SizedBox(width: width, child: _buildStatCard('Batches', stats['total_batches'].toString(), Icons.class_, theme.accent, isLoading, theme)),
       ],
     );
   }
@@ -705,13 +712,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
     );
   }
 
-  Widget _buildWelcomeBanner(user, profile, isDesktop, EliteTheme theme) {
+  Widget _buildWelcomeBanner(dynamic user, dynamic profile, bool isDesktop, EliteTheme theme) {
     return Container(
       padding: EdgeInsets.all(isDesktop ? 32 : 20),
       decoration: BoxDecoration(
         color: theme.primary,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: theme.primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))],
+        boxShadow: [BoxShadow(color: theme.primary.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 10))],
       ),
       child: Row(
         children: [
@@ -719,10 +726,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Hello, ${user?.firstName ?? 'Admin'} 👋', style: theme.display1.copyWith(color: theme.surfaceContainerLowest)),
               const SizedBox(height: 12),
-              Text('Welcome back to the SportsVerse dashboard.', style: theme.body.copyWith(color: theme.surfaceContainerLowest.withOpacity(0.8))),
+              Text('Welcome back to the SportsVerse dashboard.', style: theme.body.copyWith(color: theme.surfaceContainerLowest.withValues(alpha: 0.8))),
             ]),
           ),
-          if (isDesktop) Icon(Icons.dashboard_customize, color: theme.surfaceContainerLowest.withOpacity(0.1), size: 100),
+          if (isDesktop) Icon(Icons.dashboard_customize, color: theme.surfaceContainerLowest.withValues(alpha: 0.1), size: 100),
         ],
       ),
     );

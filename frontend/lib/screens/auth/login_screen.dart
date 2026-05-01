@@ -7,6 +7,7 @@ import 'package:sportsverse_app/providers/auth_provider.dart';
 import 'package:sportsverse_app/theme/elite_theme.dart';
 import 'package:sportsverse_app/widgets/elite_button.dart';
 import 'package:sportsverse_app/widgets/elite_text_input.dart';
+import 'package:sportsverse_app/widgets/elite_toast.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -60,15 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _showSnackBar(String message, Color color) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    EliteToast.show(context, message, isError: color == Colors.red);
   }
 
   @override

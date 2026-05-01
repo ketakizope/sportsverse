@@ -65,7 +65,9 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
       _parentNameController.text = user.parentName ?? '';
       _parentPhoneController.text = user.parentPhoneNumber ?? '';
       _parentEmailController.text = user.parentEmail ?? '';
-      _selectedGender = user.gender ?? 'M';
+      _selectedGender = (user.gender != null && user.gender!.isNotEmpty && ['M', 'F', 'O'].contains(user.gender)) 
+          ? user.gender! 
+          : 'M';
       _selectedDateOfBirth = user.dateOfBirth != null 
           ? DateTime.parse(user.dateOfBirth!) 
           : null;

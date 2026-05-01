@@ -11,6 +11,7 @@ import 'package:sportsverse_app/theme/elite_theme.dart';
 import 'package:sportsverse_app/widgets/elite_card.dart';
 import 'package:sportsverse_app/widgets/glass_header.dart';
 import 'package:sportsverse_app/widgets/elite_button.dart';
+import 'package:sportsverse_app/widgets/elite_toast.dart';
 
 class CoachAttendanceScreen extends StatefulWidget {
   const CoachAttendanceScreen({super.key});
@@ -104,17 +105,10 @@ class _CoachAttendanceScreenState extends State<CoachAttendanceScreen> {
       if (!mounted) return;
       final created = result['created'] ?? 0;
       final skipped = result['skipped_duplicates'] ?? 0;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ Attendance saved: $created marked, $skipped duplicates skipped'),
-          backgroundColor: EliteTheme.of(context).accent,
-        ),
-      );
+      EliteToast.show(context, 'Attendance saved: $created marked, $skipped skipped');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: EliteTheme.of(context).error),
-      );
+      EliteToast.show(context, 'Error: $e', isError: true);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -314,7 +308,7 @@ class _CoachAttendanceScreenState extends State<CoachAttendanceScreen> {
                 padding: const EdgeInsets.all(24),
                 child: EliteButton(
                   text: 'Submit Attendance',
-                  onPressed: _submitting ? () {} : _submit,
+                  onPressed: (_submitting || _selectedBatchId == null || batchStudents.isEmpty) ? () {} : _submit,
                   isLoading: _submitting,
                 ),
               ),
