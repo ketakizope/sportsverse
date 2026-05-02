@@ -7,6 +7,7 @@ import 'package:sportsverse_app/widgets/ai_bot_sheet.dart';
 import 'package:sportsverse_app/api/api_client.dart';
 import 'package:sportsverse_app/api/payment_api.dart';
 import 'package:sportsverse_app/providers/auth_provider.dart';
+import 'package:sportsverse_app/providers/chatbot_provider.dart';
 import 'package:sportsverse_app/providers/admin_provider.dart'; 
 import 'package:sportsverse_app/screens/academy_admin/student_payment_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/pay_salary_screen.dart';
@@ -85,6 +86,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
   void dispose() {
     _animationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _adminLogout() async {
+    await context.read<ChatbotProvider>().onLogout();
+    if (!mounted) return;
+    Provider.of<AuthProvider>(context, listen: false).logout();
+    if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/', (r) => false);
   }
 
   Future<void> fetchExpenses() async {
@@ -242,11 +250,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
                   backgroundColor: theme.accent, // Lime!
                   child: Icon(Icons.smart_toy, color: theme.primary),
                   onPressed: () {
+                    final auth = context.read<AuthProvider>();
+                    context.read<ChatbotProvider>().initialize(auth);
                     showModalBottomSheet(
                       context: context,
                       isScrollControlled: true,
                       shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
                       ),
                       builder: (context) => const AIBotSheet(),
                     );
@@ -511,7 +521,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
         ),
       ),
       actions: [
-        IconButton(icon: const Icon(Icons.logout, color: Colors.redAccent), onPressed: () => auth.logout()),
+        IconButton(
+          icon: const Icon(Icons.logout, color: Colors.redAccent),
+          onPressed: _adminLogout,
+        ),
       ],
     );
   }
@@ -607,7 +620,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
           ),
           
           const Divider(color: Colors.white24, height: 32),
-          _sidebarItem(theme, Icons.logout, 'Logout', onTap: () => Provider.of<AuthProvider>(context, listen: false).logout()),
+          _sidebarItem(theme, Icons.logout, 'Logout', onTap: _adminLogout),
           const SizedBox(height: 40),
         ],
       ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sportsverse_app/models/student_models.dart';
 import 'package:sportsverse_app/providers/auth_provider.dart';
+import 'package:sportsverse_app/providers/chatbot_provider.dart';
 import 'package:sportsverse_app/providers/student_provider.dart';
 import 'package:sportsverse_app/screens/student/attendance_screen.dart';
 import 'package:sportsverse_app/screens/student/events_screen.dart';
@@ -15,6 +16,7 @@ import 'package:sportsverse_app/screens/student/student_profile_screen.dart';
 import 'package:sportsverse_app/screens/student/videos_screen.dart';
 import 'package:sportsverse_app/screens/student/submit_match_screen.dart';
 import 'package:sportsverse_app/screens/student/match_history_screen.dart';
+import 'package:sportsverse_app/widgets/ai_bot_sheet.dart';
 
 // ─── DUPR tier helpers ────────────────────────────────────────────────────────
 
@@ -62,7 +64,9 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
-  void _logout() {
+  void _logout() async {
+    await context.read<ChatbotProvider>().onLogout();
+    if (!mounted) return;
     Navigator.pop(context); // close drawer
     final auth = Provider.of<AuthProvider>(context, listen: false);
     auth.logout();
@@ -229,6 +233,23 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
                 ),
               ),
             ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xFF1B3D2F),
+        tooltip: 'AI Assistant',
+        onPressed: () {
+          final auth = context.read<AuthProvider>();
+          context.read<ChatbotProvider>().initialize(auth);
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            builder: (_) => const AIBotSheet(),
+          );
+        },
+        child: const Icon(Icons.smart_toy_rounded, color: Color(0xFFD2F000)),
+      ),
     );
   }
 

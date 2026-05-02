@@ -1,6 +1,11 @@
 from django.urls import path
-from .views import AIChatBotView
+from .views import ChatbotQueryView
 
 urlpatterns = [
-    path('ai-assistant/', AIChatBotView.as_view(), name='ai_assistant'),
+    # ── AI Chatbot ────────────────────────────────────────────────────────────
+    # POST /api/chatbot/query/
+    # Body: { "query": "..." }
+    # Requires: Authorization: Token <token>
+    # Returns: { "response": "...", "intent": "..." }
+    path('chatbot/query/', ChatbotQueryView.as_view(), name='chatbot-query'),
 ]

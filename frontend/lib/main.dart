@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sportsverse_app/api/api_client.dart';
 import 'package:sportsverse_app/providers/auth_provider.dart';
+import 'package:sportsverse_app/providers/chatbot_provider.dart';
 import 'package:sportsverse_app/providers/student_provider.dart';
 import 'package:sportsverse_app/screens/coach/coach_dashboard_screen.dart';
 import 'package:sportsverse_app/screens/student/student_dashboard_screen.dart';
@@ -34,6 +35,7 @@ void main() async {
   },
 ),
         ChangeNotifierProvider(create: (_) => StudentProvider()),
+        ChangeNotifierProvider(create: (_) => ChatbotProvider()),
       ],
       child: const SportsVerseApp(),
     ),

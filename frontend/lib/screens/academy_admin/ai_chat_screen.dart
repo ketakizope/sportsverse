@@ -1,76 +1,38 @@
+// lib/screens/academy_admin/ai_chat_screen.dart
+//
+// Legacy screen stub — redirects to the new AIBotSheet bottom sheet.
+// This file is kept for backwards compatibility in case it is referenced
+// from old navigation routes; direct users to the new chatbot sheet.
+
 import 'package:flutter/material.dart';
-import '/services/ai_service.dart';
+import 'package:provider/provider.dart';
+import 'package:sportsverse_app/providers/auth_provider.dart';
+import 'package:sportsverse_app/providers/chatbot_provider.dart';
+import 'package:sportsverse_app/widgets/ai_bot_sheet.dart';
 
-class AIChatScreen extends StatefulWidget {
-  @override
-  _AIChatScreenState createState() => _AIChatScreenState();
-}
-
-class _AIChatScreenState extends State<AIChatScreen> {
-  final TextEditingController _controller = TextEditingController();
-  final List<Map<String, String>> _messages = []; // List to store chat history
-  final AIService _aiService = AIService();
-
-  void _sendMessage() async {
-    if (_controller.text.isEmpty) return;
-
-    String userText = _controller.text;
-    setState(() {
-      _messages.add({"role": "user", "text": userText});
-    });
-    _controller.clear();
-
-    // Call Django backend
-    String botResponse = await _aiService.getBotResponse(userText);
-
-    setState(() {
-      _messages.add({"role": "bot", "text": botResponse});
-    });
-  }
+class AIChatScreen extends StatelessWidget {
+  const AIChatScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("SportsVerse AI Assistant")),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                bool isUser = _messages[index]["role"] == "user";
-                return ListTile(
-                  title: Align(
-                    alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                    child: Container(
-                      padding: EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: isUser ? Colors.blue[100] : Colors.grey[200],
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(_messages[index]["text"]!),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(hintText: "Type: 'Add payment for...'"),
-                  ),
-                ),
-                IconButton(icon: Icon(Icons.send), onPressed: _sendMessage),
-              ],
-            ),
-          ),
-        ],
-      ),
+    // Immediately open the new chatbot sheet and pop this route
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      context.read<ChatbotProvider>().initialize(auth);
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        builder: (_) => const AIBotSheet(),
+      ).then((_) {
+        if (context.mounted) Navigator.of(context).maybePop();
+      });
+    });
+
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
     );
   }
 }

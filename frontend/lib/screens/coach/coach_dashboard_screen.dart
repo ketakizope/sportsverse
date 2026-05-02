@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sportsverse_app/api/coach_api.dart';
 import 'package:sportsverse_app/providers/auth_provider.dart';
+import 'package:sportsverse_app/providers/chatbot_provider.dart';
 import 'package:sportsverse_app/screens/coach/coach_attendance_screen.dart';
 import 'package:sportsverse_app/screens/coach/coach_batches_screen.dart';
 import 'package:sportsverse_app/screens/coach/coach_ratings_screen.dart';
 import 'package:sportsverse_app/theme/elite_theme.dart';
+import 'package:sportsverse_app/widgets/ai_bot_sheet.dart';
 import 'package:sportsverse_app/widgets/elite_card.dart';
 import 'package:sportsverse_app/widgets/glass_header.dart';
 
@@ -39,7 +41,9 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
     }
   }
 
-  void _logout() {
+  void _logout() async {
+    await context.read<ChatbotProvider>().onLogout();
+    if (!mounted) return;
     if (Scaffold.maybeOf(context)?.hasDrawer ?? false) Navigator.pop(context);
     Provider.of<AuthProvider>(context, listen: false).logout();
     if (mounted) Navigator.of(context).pushNamedAndRemoveUntil('/', (r) => false);
@@ -74,6 +78,23 @@ class _CoachDashboardScreenState extends State<CoachDashboardScreen> {
                     icon: Icon(Icons.refresh, color: theme.primary),
                   ),
                 ],
+              ),
+              floatingActionButton: FloatingActionButton(
+                backgroundColor: theme.primary,
+                tooltip: 'AI Assistant',
+                onPressed: () {
+                  final auth = context.read<AuthProvider>();
+                  context.read<ChatbotProvider>().initialize(auth);
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                    ),
+                    builder: (_) => const AIBotSheet(),
+                  );
+                },
+                child: Icon(Icons.smart_toy_rounded, color: theme.accent),
               ),
               body: Row(
                 children: [

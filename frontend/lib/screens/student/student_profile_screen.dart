@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:sportsverse_app/providers/auth_provider.dart';
+import 'package:sportsverse_app/providers/chatbot_provider.dart';
 import 'package:sportsverse_app/api/student_api.dart';
 import 'package:sportsverse_app/api/coach_api.dart';
 import 'package:sportsverse_app/models/user.dart';
@@ -305,11 +306,12 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
     );
   }
 
-  void _logout() {
+  void _logout() async {
     try {
+      await context.read<ChatbotProvider>().onLogout();
+      if (!mounted) return;
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       authProvider.logout();
-      
       if (mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil(
           '/login',
