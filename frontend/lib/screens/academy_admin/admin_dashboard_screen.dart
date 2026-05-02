@@ -12,6 +12,7 @@ import 'package:sportsverse_app/providers/admin_provider.dart';
 import 'package:sportsverse_app/screens/academy_admin/student_payment_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/pay_salary_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/salary_details_screen.dart';
+import 'package:sportsverse_app/screens/coach/coach_ratings_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/branch_management_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/batch_management_screen.dart';
 import 'package:sportsverse_app/screens/academy_admin/add_student_enrollment_screen.dart';
@@ -604,6 +605,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> with Ticker
             children: [
               _sidebarSubItem(theme, context, 'Branch Management', Icons.location_city, () => setState(() => _currentContent = const BranchManagementScreen())),
               _sidebarSubItem(theme, context, 'Batch Management', Icons.groups, () => setState(() => _currentContent = const BatchManagementScreen())),
+              _sidebarSubItem(theme, context, 'DUPR Ratings', Icons.star, () => setState(() => _currentContent = const CoachRatingsScreen())),
             ],
           ),
 

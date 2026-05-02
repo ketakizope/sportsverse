@@ -16,6 +16,7 @@ import 'package:sportsverse_app/screens/student/student_profile_screen.dart';
 import 'package:sportsverse_app/screens/student/videos_screen.dart';
 import 'package:sportsverse_app/screens/student/submit_match_screen.dart';
 import 'package:sportsverse_app/screens/student/match_history_screen.dart';
+import 'package:sportsverse_app/screens/student/student_ratings_screen.dart';
 import 'package:sportsverse_app/widgets/ai_bot_sheet.dart';
 
 // ─── DUPR tier helpers ────────────────────────────────────────────────────────
@@ -788,6 +789,7 @@ class _StudentDashboardScreenState extends State<StudentDashboardScreen> {
           _tile(Icons.sports_tennis, "Record Match", () => _go(const SubmitMatchScreen())),
           _tile(Icons.history, "Match History", () => _go(const MatchHistoryScreen())),
           _tile(Icons.description, "Reports", () => _go(const ReportsScreen())),
+          _tile(Icons.star, "DUPR Ratings", () => _go(const StudentRatingsScreen())),
           const Divider(),
           _tile(Icons.notifications_none, "Notifications",
               () => _go(const NotificationsScreen())),

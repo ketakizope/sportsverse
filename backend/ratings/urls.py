@@ -9,6 +9,9 @@ from ratings.views import (
     MatchVerificationView,
     PendingMatchesView,
     MatchHistoryView,
+    StudentRatingsView,
+    MyRatingHistoryView,
+    ForecastMatchView,
 )
 
 app_name = "ratings"
@@ -20,5 +23,8 @@ urlpatterns = [
     path('matches/', MatchSubmitView.as_view(), name='match-submit'),
     path('matches/<int:pk>/verify/', MatchVerificationView.as_view(), name='match-verify'),
     
-    # Existing legacy views comment out for now or we would put StudentRatingsView etc back
+    # Rating Lookups
+    path('students/', StudentRatingsView.as_view(), name='student-ratings'),
+    path('my-history/', MyRatingHistoryView.as_view(), name='my-history'),
+    path('forecast/', ForecastMatchView.as_view(), name='forecast'),
 ]

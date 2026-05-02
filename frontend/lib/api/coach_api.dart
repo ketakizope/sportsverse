@@ -443,7 +443,9 @@ class CoachApi {
     if (sportId != null) params.add('sport_id=$sportId');
     if (batchId != null) params.add('batch_id=$batchId');
     final query = params.isNotEmpty ? '?${params.join('&')}' : '';
+    print('🚀 CoachApi: getStudentRatings calling /api/ratings/students/$query');
     final response = await apiClient.get('/api/ratings/students/$query', includeAuth: true);
+    print('📦 CoachApi: getStudentRatings status: ${response.statusCode}');
     if (response.statusCode == 200) {
       return (json.decode(response.body) as List)
           .map((j) => StudentRatingItem.fromJson(j as Map<String, dynamic>))

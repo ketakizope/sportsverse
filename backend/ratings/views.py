@@ -18,6 +18,7 @@ from ratings.models import PlayerRatingProfile, RatingMatch, RatingAudit, MatchA
 from ratings.rating import update_singles, update_doubles, expected_points_percentage
 from ratings.reconciliation import reconcile_scores
 from ratings.reliability import update_reliability
+from ratings.fairness import calculate_fairness_index
 
 logger = logging.getLogger(__name__)
 
@@ -223,3 +224,153 @@ class MatchHistoryView(APIView):
                 'format': m.format,
             })
         return Response(data, status=status.HTTP_200_OK)
+
+
+class StudentRatingsView(APIView):
+    """
+    GET /api/ratings/students/
+    List all students in the organization with their current DUPR ratings.
+    Used for the leaderboard in Admin and Coach dashboards.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        print(f"DEBUG: StudentRatingsView hit by user {request.user.username} ({request.user.user_type})")
+        # Determine organization scope
+        if hasattr(request.user, 'academy_admin_profile'):
+            org = request.user.academy_admin_profile.organization
+        elif hasattr(request.user, 'coach_profile'):
+            org = request.user.coach_profile.organization
+        elif hasattr(request.user, 'student_profile'):
+            org = request.user.student_profile.organization
+        else:
+            return Response({'error': 'Organization context not found.'}, status=status.HTTP_403_FORBIDDEN)
+
+        from accounts.models import StudentProfile
+        students = StudentProfile.objects.filter(organization=org).select_related('user')
+        
+        # Optional filters
+        batch_id = request.query_params.get('batch_id')
+        if batch_id:
+            from organizations.models import Enrollment
+            student_ids = Enrollment.objects.filter(batch_id=batch_id, is_active=True).values_list('student_id', flat=True)
+            students = students.filter(id__in=student_ids)
+
+        # Get all rating profiles for this org to avoid N+1
+        profiles_map = {
+            p.user_id: p 
+            for p in PlayerRatingProfile.objects.filter(organization=org)
+        }
+
+        data = []
+        for s in students:
+            u = s.user
+            if not u:
+                continue
+            
+            p = profiles_map.get(u.pk)
+            
+            # Default values if no profile exists
+            rating_singles = float(p.dupr_rating_singles) if p else 4.000
+            rating_doubles = float(p.dupr_rating_doubles) if p else 4.000
+            matches_s = p.matches_played_singles if p else 0
+            matches_d = p.matches_played_doubles if p else 0
+            reliability = float(p.reliability) if p else 50.00
+            
+            data.append({
+                'user_id': u.pk,
+                'username': u.username,
+                'first_name': u.first_name or s.first_name,
+                'last_name': u.last_name or s.last_name,
+                'sport_id': p.sport_id if p else 0,
+                'sport_name': p.sport.name if p and p.sport else 'N/A',
+                'dupr_rating_singles': rating_singles,
+                'dupr_rating_doubles': rating_doubles,
+                'matches_played_singles': matches_s,
+                'matches_played_doubles': matches_d,
+                'reliability': int(reliability),
+                'is_provisional': matches_s < 10, 
+                'updated_at': p.updated_at.isoformat() if p else None,
+            })
+        
+        # Sort ranking wise by singles rating by default
+        data.sort(key=lambda x: x['dupr_rating_singles'], reverse=True)
+        
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class MyRatingHistoryView(APIView):
+    """
+    GET /api/ratings/my-history/
+    Returns rating change audit entries for the logged-in user.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        audits = RatingAudit.objects.filter(player=request.user).order_by('-created_at')[:50]
+        data = []
+        for a in audits:
+            data.append({
+                'id': a.pk,
+                'match_id': a.match_id if a.match else None,
+                'old_rating': float(a.old_rating),
+                'new_rating': float(a.new_rating),
+                'delta': float(a.delta),
+                'format': a.format,
+                'date': a.created_at.date().isoformat(),
+                'method': a.method,
+                'note': a.note,
+            })
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class ForecastMatchView(APIView):
+    """
+    POST /api/ratings/forecast/
+    Simulate a match result between two players to see predicted rating impact.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        p1_id = request.data.get('player1_id')
+        p2_id = request.data.get('player2_id')
+        fmt = request.data.get('format', 'SINGLES').upper()
+        
+        if not p1_id or not p2_id:
+            return Response({'error': 'player1_id and player2_id are required'}, status=400)
+
+        try:
+            p1 = CustomUser.objects.get(pk=p1_id)
+            p2 = CustomUser.objects.get(pk=p2_id)
+            # Use first sport for profile fetch (simplification)
+            profile1 = PlayerRatingProfile.objects.filter(user=p1).first()
+            profile2 = PlayerRatingProfile.objects.filter(user=p2).first()
+        except CustomUser.DoesNotExist:
+            return Response({'error': 'Player not found'}, status=404)
+
+        if not profile1 or not profile2:
+            return Response({'error': 'Rating profiles not found for one or both players'}, status=404)
+
+        r1 = float(profile1.dupr_rating_singles if fmt == 'SINGLES' else profile1.dupr_rating_doubles)
+        r2 = float(profile2.dupr_rating_singles if fmt == 'SINGLES' else profile2.dupr_rating_doubles)
+
+        win_prob1 = expected_points_percentage(r1, r2)
+        
+        # Simple delta simulation (using a fixed K-factor of 0.1 for forecast)
+        k = 0.1
+        delta_if_win = k * (1.0 - win_prob1)
+        delta_if_loss = k * (0.0 - win_prob1)
+
+        return Response({
+            'win_probability_player1': win_prob1,
+            'player1': {
+                'current_rating': r1,
+                'if_win': {'new_rating': r1 + delta_if_win, 'delta': delta_if_win},
+                'if_loss': {'new_rating': r1 + delta_if_loss, 'delta': delta_if_loss},
+            },
+            'player2': {
+                'current_rating': r2,
+                'if_win': {'new_rating': r2 + (k * (1.0 - (1.0-win_prob1))), 'delta': k * (1.0 - (1.0-win_prob1))},
+            }
+        })
+
